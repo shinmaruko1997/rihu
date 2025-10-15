@@ -61,7 +61,7 @@ Typical RAG pipelines retrieve by lexical overlap or vector similarity in a sing
 
 ## Coordinate System
 
-We embed everything into ( $\mathbb{R}^D$ ) with axes chosen to be **broad, continuous, and widely connected** (e.g., time / space / semantics). Good axes:
+We embed everything into $\mathbb{R}^D$ with axes chosen to be **broad, continuous, and widely connected** (e.g., time / space / semantics). Good axes:
 
 1. Are Classes or abstractions of Classes (e.g., “city”, “organization”).
 2. Connect to many other Classes and exhibit continuity.
@@ -114,7 +114,7 @@ No strict formulas are required; what matters is the **intent** behind each step
 
 ---
 
-### Objective Retrieval — *Searching from the God's-eye view*
+### 1) Objective Retrieval — *Searching from the God's-eye view*
 
 **Intent:**
 Objective retrieval represents a **God’s-eye perspective** — an attempt to search the knowledge space **as if one could see all relationships at once**.
@@ -327,7 +327,7 @@ for key, score in hits:
 
 ### Retrieval
 
-* `objective_search(target_classes: List[str], k=10, radius_factor=1.0, min_class_power=0.0) -> List[(hf_key, score)]`
+* `objective_search(target_classes: List[str], k=10, radius_factor=1.0, min_class_power=0.0) -> List[Tuple[str, float]]`
 * `subjective_search(observer_pos: np.ndarray, k_near=10, radius=1.0, power_threshold=0.0, k_context=5) -> Dict`
 
 ### Introspection
@@ -388,7 +388,7 @@ Issues and PRs are welcome! Please:
 ## License
 
 This project is licensed under the **MIT License**.
-Copyright (c) 2025
+Copyright (c) 2025 H.Kiriyama
 See the [LICENSE](LICENSE) file for details.
 
 SPDX-License-Identifier: MIT
