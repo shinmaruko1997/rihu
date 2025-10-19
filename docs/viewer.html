@@ -1,1 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RIHU — KAG Universe Viewer (Light)</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root { --bg:#f5f5f5; --fg:#0b1220; --muted:#475569; --accent:#0ea5e9; }
+    html,body{height:100%;}
+    body{margin:0; background:var(--bg); color:var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
+    header{padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    header h1{margin:0; font-size:18px; letter-spacing:.3px}
+    header .pill{padding:4px 8px; border-radius:999px; background:#0ea5e980; color:#08141d; font-weight:600}
+    main{display:grid; grid-template-columns: 340px 1fr; min-height: calc(100% - 64px);} 
+    #panel{border-right:1px solid #e5e7eb; padding:16px; overflow:auto}
+    #panel h2{font-size:14px; margin:16px 0 8px; color:var(--muted)}
+    #panel .card{background:#ffffff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; margin-bottom:12px}
+    #panel label{font-size:13px; color:var(--fg)}
+    #panel input[type="file"], select, input[type="range"], input[type="checkbox"]{ width:100%; margin-top:6px; }
+    #panel .row{display:flex; gap:8px}
+    #panel .row > *{flex:1}
+    #meta{font-size:12px; color:var(--muted)}
+    #plot{height: calc(100vh - 64px);}
+    .tiny{font-size:11px; color:var(--muted)}
+    .badge{display:inline-block; padding:2px 6px; border-radius:999px; background:#e5e7eb; color:#111827; font-size:11px}
+    a, a:visited{color: var(--accent)}
+    .legend{display:flex; gap:8px; flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RIHU — KAG Universe Viewer</h1>
+    <span class="tiny">Upload <code>universe.json</code> → pick 3 dimensions → explore.</span>
+  </header>
+  <main>
+    <section id="panel">
+      <div class="card">
+        <h2>Load universe.json</h2>
+        <input id="file" type="file" accept="application/json" />
+        <div id="meta" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h2>Axes (Dimensions)</h2>
+        <div class="row">
+          <div>
+            <label>X</label>
+            <select id="axX"></select>
+          </div>
+          <div>
+            <label>Y</label>
+            <select id="axY"></select>
+          </div>
+          <div>
+            <label>Z</label>
+            <select id="axZ"></select>
+          </div>
+        </div>
+        <div class="tiny" id="axisDesc" style="margin-top:6px"></div>
+      </div>
+      <div class="card">
+        <h2>Legend / Tips</h2>
+        <div class="legend">
+          <span class="badge">● Classes</span>
+          <span class="badge">● HFs</span>
+        </div>
+        <p class="tiny">Class marker sizes ≈ volume^(1/D) (normalized). Hover to see power / radius.</p>
+        <p class="tiny">HFs carry their text and participating classes in hover.</p>
+      </div>
+      <div class="card">
+        <h2>About axes</h2>
+        <p class="tiny">If your universe was built with <em>interpretable axes</em>, the first 3 dimensions often map to concepts like <em>Time / Location / Semantics</em>. You can remap X/Y/Z to explore different projections.</p>
+      </div>
+    </section>
+    <section>
+      <div id="plot"></div>
+    </section>
+  </main>
 
+  <script>
+    let UNIVERSE = null;
+    let DIMS = 3;
+    const els = {
+      file: document.getElementById('file'),
+      meta: document.getElementById('meta'),
+      axX: document.getElementById('axX'),
+      axY: document.getElementById('axY'),
+      axZ: document.getElementById('axZ'),
+      axisDesc: document.getElementById('axisDesc'),
+      clsScaleVal: document.getElementById('clsScaleVal'),
+      hfSizeVal: document.getElementById('hfSizeVal'),
+      plot: document.getElementById('plot'),
+    };
+
+    function readFile(f){
+      return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsText(f, 'utf-8');
+      });
+    }
+
+    function axisLabel(i, meta){
+      if (!meta || !meta.axes || !meta.axes[i]) return `Dim ${i}`;
+      const ax = meta.axes[i];
+      return ax?.name ? `${ax.name} (Dim ${i})` : `Dim ${i}`;
+    }
+
+    function axisDesc(meta){
+      if (!meta || !meta.axes) return '';
+      return meta.axes.map((ax, i)=>`<div><b>${i}.</b> ${ax.name} — <span class="tiny">${ax.description||''}</span></div>`).join('');
+    }
+
+    function inferDims(u, meta){
+      const byAxes = meta?.axes?.length ?? 0;
+      const byCoords = Math.max(
+        0,
+        ...Object.values(u.classes||{}).map(n => n?.coord?.length || 0),
+        ...Object.values(u.hfs||{}).map(n => n?.coord?.length || 0)
+      );
+      return Math.max(meta?.dims ?? 3, byAxes, byCoords);
+    }
+
+    function populateAxisSelectors(meta){
+      const dims = inferDims(UNIVERSE, meta);
+      DIMS = dims;
+      [els.axX, els.axY, els.axZ].forEach((sel, idx)=>{
+        sel.innerHTML = '';
+        for(let i=0;i<dims;i++){
+          const opt = document.createElement('option');
+          opt.value = i; opt.textContent = axisLabel(i, meta);
+          if (i === idx) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        sel.onchange = draw;
+      });
+      els.axisDesc.innerHTML = axisDesc(meta);
+    }
+
+    function unpackUniverse(u){
+      const classes = [];
+      for (const [name, node] of Object.entries(u.classes||{})){
+        if (!node.coord) continue;
+        classes.push({
+          name,
+          x: node.coord[0], y: node.coord[1], z: node.coord[2],
+          coord: node.coord,
+          radius: node.radius ?? null,
+          volume: node.volume ?? null,
+          power: node.power ?? null,
+          aliases: node.aliases || [],
+          instances: (node.instances||[]).length,
+        });
+      }
+      const hfs = [];
+      for (const [hid, hf] of Object.entries(u.hfs||{})){
+        if (!hf.coord) continue;
+        hfs.push({
+          id: hid,
+          text: hf.text || '',
+          x: hf.coord[0], y: hf.coord[1], z: hf.coord[2],
+          coord: hf.coord,
+          classes: hf.class_names || [],
+          sources: hf.source_ids || [],
+        })
+      }
+      return {classes, hfs};
+    }
+
+    function normalizeSizes(values, minPx=6, maxPx=40){
+      const vals = values.filter(v=> typeof v === 'number' && isFinite(v) && v>0);
+      if (vals.length === 0) return values.map(_=> minPx);
+      const min = Math.min(...vals), max = Math.max(...vals);
+      if (min === max) return values.map(_=> (minPx+maxPx)/2);
+      return values.map(v=>{
+        if (!(typeof v === 'number') || !isFinite(v) || v<=0) return minPx;
+        const t = (v - min) / (max - min);
+        return minPx + t*(maxPx-minPx);
+      });
+    }
+
+    function hasDims(p, ...is){
+      return Array.isArray(p.coord) && is.every(i => Number.isFinite(p.coord[i]));
+    }
+
+    function draw(){
+      if (!UNIVERSE) return;
+      const u = UNIVERSE;
+      const dx = +els.axX.value || 0;
+      const dy = +els.axY.value || 1;
+      const dz = +els.axZ.value || 2;
+
+      const {classes, hfs} = unpackUniverse(u);
+
+      const clsFiltered = classes.filter(p => hasDims(p, dx, dy, dz));
+      const hfsFiltered = hfs.filter(p => hasDims(p, dx, dy, dz));
+
+      const warn = (classes.length && !clsFiltered.length) || (hfs.length && !hfsFiltered.length);
+      if (warn) {
+        els.axisDesc.innerHTML =
+          axisDesc(u.meta) + `<div class="tiny" style="color:#b91c1c;margin-top:6px">
+            選択された軸 (${dx},${dy},${dz}) をすべて持つ点がありません。</div>`;
+      }
+
+      const proj = (p) => ({ x:p.coord[dx], y:p.coord[dy], z:p.coord[dz] });
+      const cls = clsFiltered.map(c => ({...c, ...proj(c)}));
+      const hfp = hfsFiltered.map(h => ({...h, ...proj(h)}));
+
+      const D = inferDims(u, u.meta);
+      const radiiLike = cls.map(c => (typeof c.volume==='number' && c.volume>0)
+        ? Math.pow(c.volume, 1/Math.max(D,1)) : null);
+      const clsSizes = normalizeSizes(radiiLike, 4, 25);
+
+      const traces = [{
+        type:'scatter3d', mode:'markers', name:'Classes',
+        x: cls.map(p=>p.x), y: cls.map(p=>p.y), z: cls.map(p=>p.z),
+        text: cls.map(p=> p.name),
+        hovertemplate:
+          '<b>%{text}</b><br>'+
+          'x:%{x} y:%{y} z:%{z}<br>'+
+          'radius:%{customdata[0]} · power:%{customdata[1]}<br>'+
+          'volume:%{customdata[2]} · instances:%{customdata[3]}<br>'+
+          'aliases:%{customdata[4]}<extra>Class</extra>',
+        customdata: cls.map(p=> [
+          p.radius ?? '', p.power ?? '', p.volume ?? '', p.instances, (p.aliases||[]).join(', ')
+        ]),
+        marker:{ size: clsSizes, opacity:0.5, symbol:'circle', line:{width:0} }
+      },{
+        type:'scatter3d', mode:'markers', name:'HFs',
+        x: hfp.map(p=>p.x), y: hfp.map(p=>p.y), z: hfp.map(p=>p.z),
+        text: hfp.map(p=> p.id),
+        hovertemplate:
+          '<b>%{text}</b><br>'+
+          'x:%{x} y:%{y} z:%{z}<br>'+
+          '<i>%{customdata[0]}</i><br>'+
+          'classes:%{customdata[1]}<br>'+
+          'sources:%{customdata[2]}<extra>HF</extra>',
+        customdata: hfp.map(p=> [p.text, (p.classes||[]).join(', '), (p.sources||[]).join(', ')]),
+        marker:{ size: 1.5, opacity:0.85, symbol:'diamond' }
+      }];
+
+      const layout = {
+        paper_bgcolor:'#f5f5f5', plot_bgcolor:'#f5f5f5',
+        scene:{
+          xaxis:{title: axisLabel(dx, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          yaxis:{title: axisLabel(dy, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          zaxis:{title: axisLabel(dz, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          aspectmode:'cube',
+        },
+        legend:{x:0, y:1, font:{color:'#111827'}},
+        margin:{l:0,r:0,t:10,b:0}, showlegend:true,
+      };
+
+      Plotly.newPlot(els.plot, traces, layout, {responsive:true, displaylogo:false, modeBarButtonsToRemove:['toImage']});
+    }
+
+    els.file.addEventListener('change', async (e)=>{
+      const f = e.target.files?.[0];
+      if (!f) return;
+      try {
+        const txt = await readFile(f);
+        const u = JSON.parse(txt);
+        UNIVERSE = u;
+        populateAxisSelectors(u.meta||{dims:3, axes:[]});
+        const nC = Object.keys(u.classes||{}).length,
+              nH = Object.keys(u.hfs||{}).length,
+              nI = Object.keys(u.instances||{}).length,
+              dims = (u.meta?.dims)||3,
+              model = u.meta?.llm_model || 'n/a',
+              embed = u.meta?.embedding_model || 'n/a';
+        els.meta.innerHTML = `Dims: <b>${dims}</b> · Classes: <b>${nC}</b> · HFs: <b>${nH}</b> · Instances: <b>${nI}</b><br>`+
+          `<span class="tiny">LLM: ${model} · Embeddings: ${embed}</span>`;
+        draw();
+      } catch(err){
+        console.error(err);
+        alert('Failed to parse universe.json');
+      }
+    });
+
+  </script>
+</body>
+</html>
