@@ -1,79 +1,115 @@
-# KAG — Knowledge as Geometry
+# RIHU — Retrieval In the Hypothetical Universe
 
-> A geometry-first approach to RAG: position **facts**, **classes**, and **instances** in a shared coordinate space, then retrieve by distance, density, and context.
+> A search paradigm built upon **KAG (Knowledge as Geometry)** — navigating meaning through geometry.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](#quickstart)
-[![Status](https://img.shields.io/badge/status-prototype-orange.svg)](#roadmap)
 
 ---
 
 ## Purpose and Scope
 
-This repository is an **experimental and conceptual prototype** introducing the idea of *Knowledge as Geometry (KAG)*.  
-Its purpose is to present the theoretical foundation and provide a working demonstration for discussion and collaboration.
+This repository introduces **RIHU (Retrieval In the Hypothetical Universe)** —
+a prototype retrieval framework **operating inside the KAG Universe**, where knowledge is represented as geometry.
 
-KAG does **not aim to be a finalized system** at this stage.  
-Rather, it serves as an *open research artifact* designed to:
-- Explore the possibility of representing knowledge as a geometric structure  
-- Encourage theoretical and practical feedback from researchers and engineers  
-- Serve as a foundation for future extensions (integration with RAG, visualization tools, etc.)
+RIHU is **not merely a new retrieval algorithm**.
+It is a practical exploration of how the **KAG** concept — *Knowledge as Geometry* — can transform retrieval into a spatial reasoning process.
 
-> ⚠️ Note: This is an early-stage research prototype.  
-> Stability, completeness, and empirical validation are intentionally secondary to conceptual clarity.
+**KAG** defines how knowledge exists: as points, regions, and relations in a continuous geometric space.
+**RIHU** defines how we *move through* that space: how we locate, interpret, and retrieve meaning based on distance, density, and containment.
+
+> ⚠️ This repository introduces both a **theoretical framework (KAG)** and its **first applied search system (RIHU)**.
+> It serves as an open research artifact — a foundation for discussion, visualization, and experimental RAG integration.
 
 ---
 
 ## TL;DR
 
-KAG models the world as a space densely packed with **facts**. Since exhaustive, omniscient capture of “all facts” is impossible, we work with **Hypothetical Facts (HF)** inferred from observation. We project HFs, **Classes** (patterns), and **Instances** (occurrences) into a shared coordinate system (e.g., time / space / semantics). Retrieval becomes geometric: **nearby = related**, **dense = influential**, **inside = contextual**.
+**KAG** models knowledge as a shared geometric space of **Hypothetical Facts (HFs)**, **Classes**, and **Instances**.
+Since the totality of “all facts” is unknowable, KAG works with **Hypothetical Facts** — inferred and contextually grounded propositions.
 
-This repo provides:
+Within this **KAG Universe**, **RIHU** performs retrieval as **wayfinding**.
+Rather than lexical matching, retrieval becomes spatial navigation: **nearby = related**, **dense = influential**, **inside = contextual**.
 
-* A reference Python implementation of the KAG indexer & retriever
-* Objective & subjective search strategies
-* Influence metrics (centroid / radius / volume / power)
-* A small demo dataset and CLI runner
+This repository provides:
 
----
-
-## Why KAG?
-
-Typical RAG pipelines retrieve by lexical overlap or vector similarity in a single embedding space. KAG differs by:
-
-* Treating **time / place / semantics** (and other high-level features) as **explicit axes**.
-* Making **Classes first-class citizens** with measurable **influence** over regions of the knowledge space.
-* Allowing **subjective search** from an observer’s position (a person, role, or situation) rather than only query text.
-* Using **geometric constraints** (anchors, regularization, scale normalization) to keep positions interpretable.
+* A reference Python implementation of the **KAG core** and the **RIHU retriever**
+* Both **objective (world-centric)** and **subjective (observer-centric)** search modes
+* Influence and context metrics (centroid / radius / volume / power)
+* A small demonstration dataset and CLI runner
 
 ---
 
-## Core Concepts
+## Relationship Between RIHU and KAG
 
-* **Hypothetical Fact (HF)**: A proposition inferred from observation (e.g., “1776-07-04: Declaration adopted in Philadelphia”, or “A and B talked at C one week before XX”). HFs are the atomic points we place.
-* **Instance**: An occurrence of a Class **within** a specific HF (e.g., the **“Declaration of Independence”** appearing in five HFs yields **five Instances** of that Class).
-* **Class**: A pattern shared by similar Instances. **There is exactly one Class** per conceptual pattern (e.g., “Declaration of Independence”, “18th century”, “Paris”).
-* **Representation**: A human-facing composition built from HFs (e.g., a documentary). In practice, we often **extract HFs from Representations**.
+| Concept                                           | Role                                                                                                                         |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **KAG (Knowledge as Geometry)**                   | The *theoretical foundation* — defines how knowledge is represented as a geometric structure of HFs, Classes, and Instances. |
+| **KAG Universe**                                  | The *operational space* constructed from KAG — the geometric manifold of meaning.                                            |
+| **RIHU (Retrieval In the Hypothetical Universe)** | The *retrieval methodology* that moves through the KAG Universe to find, interpret, and contextualize knowledge.             |
 
-> Time and place are also modeled as Classes/Instances so that all information is treated **flatly** and uniformly.
-
----
-
-## Coordinate System
-
-We embed everything into $\mathbb{R}^D$ with axes chosen to be **broad, continuous, and widely connected** (e.g., time / space / semantics). Good axes:
-
-1. Are Classes or abstractions of Classes (e.g., “city”, “organization”).
-2. Connect to many other Classes and exhibit continuity.
-3. Are large “containers” that naturally include other Classes.
-
-**Anchor Classes** (e.g., coarse time bins, known locations) can be pinned or softly regularized to stabilize the geometry.
+Think of **KAG** as the *map of meaning* — and **RIHU** as the *navigator* exploring that map.
 
 ---
 
-## Geometry & Metrics
+## Why KAG (and why RIHU)?
 
-For a Class (A), using the coordinates of all its Instances:
+Traditional RAG systems retrieve by text similarity in a single embedding space.
+KAG differs fundamentally by introducing **geometry-first semantics** — explicit, interpretable coordinates of meaning.
+
+RIHU builds on that geometry to enable **structured, contextual retrieval**.
+
+* **Explicit axes** — e.g., time / space / semantics are treated as coordinate dimensions.
+* **Classes with influence** — each Class has measurable presence across regions.
+* **Subjective search** — retrieval can originate from a *vantage point*, not only from a text query.
+* **Interpretable geometry** — anchor Classes stabilize the space and make positions meaningful.
+
+---
+
+## Core Concepts (KAG Foundation)
+
+* **Hypothetical Fact (HF)** — a proposition inferred from evidence (e.g., “1776-07-04: Declaration adopted in Philadelphia”).
+* **Instance** — an occurrence of a Class within a specific HF (e.g., “Declaration of Independence” appearing in multiple HFs).
+* **Class** — a shared conceptual pattern among Instances (e.g., “18th century”, “Paris”, “Albert Einstein”).
+* **Representation** — human-facing form (text, media) from which HFs are extracted.
+
+All elements — including time and place — are modeled uniformly as Classes and Instances, forming a **flat geometry of meaning**.
+
+---
+
+## The KAG Universe: Coordinate System
+
+All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).
+Good axes:
+
+1. Are abstractions of Classes (e.g., “location”, “organization”).
+2. Connect many other Classes with continuity.
+3. Provide large, interpretable “containers” of meaning.
+
+**Anchor Classes** (like time bins or known locations) stabilize the coordinate frame via regularization.
+> In practice, **axes and anchor coordinates can also be suggested or initialized by large language models (LLMs)** — for example, inferring temporal, spatial, or semantic anchors from descriptive text or datasets.
+> This enables partially automated construction of the KAG Universe, while keeping its geometric interpretability intact.
+
+---
+
+## Universe Construction
+
+The following section outlines how these geometric ideas are implemented concretely in RIHU’s Python prototype.
+
+1. **Propose axes** (LLM, single call, **K in [3,10]**).
+2. **Extract HFs & Classes** (LLM-assisted with fallbacks).
+3. **Mechanical merge** (name normalization + alias consolidation), optionally followed by **LLM consolidation**.
+4. **Initial coordinates** via embeddings + SVD projection to (D) dimensions.
+5. *(Optional)* **Anchor targets & one-shot affine alignment** (anchors then remain fixed).
+6. **Iterative relaxation** (HFs → class centroids; classes → instance-HF centroids).
+7. **Scale normalization** — **prefer anchors** when available; otherwise use all classes.
+8. **Metrics** — centroid / radius (enclosing-ball approx) / volume / power.
+
+---
+
+## Geometry & Metrics (KAG Core)
+
+For any Class (A), using the coordinates of its Instances:
 
 1. **Position** (centroid): the mean of Instance coordinates
    $\mathbf{c}\_A = \frac{1}{n}\sum_{i=1}^{n}\mathbf{x}\_i$
@@ -82,146 +118,85 @@ For a Class (A), using the coordinates of all its Instances:
    $V_A = V_D(1)\cdot r_A^D,\quad V_D(1)=\frac{\pi^{D/2}}{\Gamma(D/2+1)}$
 4. **Power**:
    $\text{power}(A)=\frac{\text{Instances}(A)}{V_A}$
+  
+### Contextual Relationships
 
-**Context rules** (intuition):
-
-* If an HF lies **inside** a Class’s influence region and that Class has sufficient power, the Class is **contextual** for that HF.
-* If Class (A) lies inside Class (B)’s influence region with sufficient power, (A) is **subordinate** to (B) (i.e., (B) is context for (A)).
-
----
-
-## Index Construction (Provisional)
-
-1. **Initialize axes & anchors.** Give Classes optional initial vectors; anchors are fixed or softly regularized.
-2. **Place HFs** as the (weighted) centroid of their participating Classes.
-3. **Update Classes** toward the (weighted) centroid of the HFs that include them (use damping: ( $\text{new} = (1-\alpha)\text{old} + \alpha\cdot\text{target}$ )).
-4. **Apply anchors / constraints.** Keep time/space priors stable.
-5. **Normalize scale.** Keep global distances consistent (e.g., fix mean anchor distance).
-6. **Convergence.** Stop when max movement ($< \varepsilon$).
-7. **Output.** Final coordinates for Classes and HFs; compute distances & influence.
+* If an HF lies inside a Class’s influence region, that Class is contextual for the HF.
+* If Class A lies within Class B’s influence region, A is subordinate to B (B provides the contextual frame).
 
 ---
 
-## Retrieval
+## RIHU Retrieval in the KAG Universe
 
-KAG treats retrieval as **navigation** through a geometry of meaning. Instead of asking “which texts match these keywords?”, we ask: **“Where in the space should I stand, and what becomes near, dense, or enclosing when I do?”**
-Two complementary modes emerge:
+RIHU treats retrieval as **navigation through the KAG Universe**.
+Instead of asking *“Which texts match?”*, we ask:
+**“Where should I stand in the geometry — and what becomes near, dense, or enclosing when I do?”**
 
-* **Objective (world-centric):** start from the **world’s structure**—a set of Classes you care about—and let the space surface HFs that sit where those Classes **converge**.
-* **Subjective (observer-centric):** start from a **point of view**—a person, role, or situation—and ask what is **near**, what **contains** you, and what is **just beyond reach**.
+RIHU supports two complementary retrieval modes:
 
-No strict formulas are required; what matters is the **intent** behind each step.
-
----
-
-### 1) Objective Retrieval — *Searching from the God's-eye view*
-
-**Intent:**
-Objective retrieval represents a **God’s-eye perspective** — an attempt to search the knowledge space **as if one could see all relationships at once**.
-Rather than standing in a single observer’s position, we look down from above, seeking **globally coherent** relationships among Classes and their associated Hypothetical Facts (HFs).
+* **Objective Retrieval (world-centric)** — search from the global structure of meaning.
+* **Subjective Retrieval (observer-centric)** — search from a specific vantage within the space.
 
 ---
 
-**Conceptual flow**
+### 1) Objective Retrieval — *Searching from the God’s-eye view*
 
-1. **Define the conceptual nucleus.**
-   Choose a set of Classes that together represent the phenomenon or topic of interest (e.g., *Declaration of Independence*, *United States*).
+**Intent:** Discover what the world “knows” about a topic, by locating regions where relevant Classes converge.
 
-2. **Locate its gravitational center.**
-   Compute the centroid of these Classes in the knowledge space. This point serves as the *anchor* for the objective viewpoint — the geometric center of meaning for your query.
+**Conceptual flow:**
 
-3. **Survey the neighborhood.**
-   Identify HFs that:
+1. **Define the conceptual nucleus** — choose key Classes (e.g., *Declaration of Independence*, *United States*).
+2. **Compute the centroid** — find their geometric center in the Universe.
+3. **Survey the neighborhood** — identify HFs near that centroid that share overlapping Class memberships.
+4. **Interpret density** — dense regions imply high influence or conceptual richness.
 
-   * share overlapping Class memberships (the same conceptual DNA), and
-   * physically reside near that centroid (occupy the same region of the space).
+**Philosophical intent:**
 
-   These HFs form the **objective cluster**: what the world “knows” about this combination of ideas.
-
-4. **Respect the geometry of relevance.**
-   In KAG, *distance* is not an abstract number but a reflection of *semantic position*.
-   Proximity means **shared context**, not just shared words.
-   Density reveals **influence** — regions where many related Instances exist are where the world has “more to say.”
+* *The world before the observer* — reveal the structure of meaning independent of perspective.
+* *Geometry before language* — relationships emerge from position, not word overlap.
+* *Integrative design* — RIHU can combine geometric reasoning with vector-based similarity for hybrid RAG pipelines.
 
 ---
 
-**Philosophical intent**
+### 2) Subjective Retrieval — *See through a pair of eyes*
 
-* **World before observer.**
-  Objective retrieval prioritizes the *structure of the knowledge space itself* over any particular viewpoint.
-  It asks: *“Where does the world naturally form meaning?”* — instead of *“What does this person see?”*
+**Intent:** Explore the world **from within** — from the viewpoint of an observer in the KAG Universe.
 
-* **A neutral frame for truth-seeking.**
-  It is an effort to glimpse the landscape of knowledge **without narrative bias**.
-  The retrieval results are not stories told by agents, but **maps of relational coherence**.
+**Conceptual flow:**
 
-* **Integration with conventional search.**
-  While KAG’s current implementation searches **by Class-based geometry**, it is designed to integrate seamlessly with existing retrieval techniques:
+1. **Pick a vantage point** — an observer (person, role, or moment).
+2. **Look around** — retrieve nearby HFs within a certain radius.
+3. **Identify context** — Classes enclosing the observer define the ambient context.
+4. **Scan the periphery** — what lies just beyond reach, signaling emerging relevance?
 
-  * Vector-based search (e.g., dense embeddings) can pre-select **relevant HFs**, whose participating Classes then define the subspace for precise geometric reasoning.
-  * Hybrid pipelines may combine **semantic similarity**, **text embeddings**, and **KAG Class geometry**, allowing objective retrieval to evolve from *symbolic reasoning* to *semantic navigation*.
+**Design principles:**
 
-  In other words, the “God’s-eye view” is not static — it can incorporate modern RAG-style retrieval as a **lens refinement step**, blending quantitative similarity with KAG’s spatial reasoning.
-
----
-
-**Design principles**
-
-* **Structure first, language second.**
-  We search *through meaning geometry*, not mere lexical overlap.
-* **Convergence as evidence.**
-  The more Classes meet in one region, the more likely that region reflects a genuine underlying phenomenon.
-* **Scalability through integration.**
-  Class-based retrieval and vector-based similarity can reinforce each other — the former offering explainability, the latter, reach.
-
----
-
-### 2) Subjective Search — *Borrow a pair of eyes*
-
-**Intent:** You care about **experience** and **context**. Place an **observer** somewhere in the space (a person, a role, a setting, a moment) and see the world from there.
-
-**How it feels conceptually**
-
-* **Pick a vantage.** The observer’s coordinate can be a specific Instance (e.g., *Person A at Tokyo, modern*) or a composite (e.g., *18th-century Parisian*).
-* **Look around (near HFs).** What actually happens **within arm’s reach** of this observer? That’s lived reality.
-* **Name the room (context Classes).** Which Classes **enclose** this observer’s position with enough presence (power)? That’s the **ambient context**—the room you’re in, not just the objects you touch.
-* **Peek beyond the wall (peripheral signals).** What’s **just outside** your radius—close enough to be rumor, media, or emerging relevance?
-
-**Design principles**
-
-* **Context is not an afterthought.** We explicitly retrieve the **Classes that contain you**, not only the events near you. The *room* matters as much as the *things*.
-* **Periphery matters.** Humans don’t just perceive the immediate; they sense **nearby possibilities**. Retrieval should too.
-* **Bias made visible.** By choosing a vantage, you **declare a bias**. That’s healthy—KAG makes it *explicit* rather than hidden in a vector.
-
-**Useful knobs**
-
-* **Radius.** Tight radius = intimate diary; wide radius = street reportage.
-* **Power threshold.** How “thick” a Class’s presence must be to count as context.
-* **Balance of near vs. peripheral.** Controls how curious your observer is.
-
-**Failure modes we accept**
-
-* **Parochial views.** A narrow radius may miss the bigger story. That’s fine—move the observer or widen the circle and try again.
+* **Context-first retrieval** — the “room” around the observer matters.
+* **Periphery awareness** — sense the nearby unknown.
+* **Bias transparency** — by declaring a vantage, bias becomes explicit.
 
 ---
 
 ### Choosing a Mode
 
-* Use **Objective** when your intent is **top-down** (“give me HFs about *this* phenomenon”).
-* Use **Subjective** when your intent is **inside-out** (“what’s the world like **from here**?”).
-* In practice, **mix both**: start objectively to locate the neighborhood, then switch to a subjective pass from a representative vantage within it.
+* Use **Objective RIHU** for top-down, phenomenon-centric exploration.
+* Use **Subjective RIHU** for bottom-up, observer-centric interpretation.
+* Mix both: locate the global neighborhood first, then experience it from within.
 
 ---
 
-### Why this matters for RAG
+## Why this matters for RAG
 
-KAG reframes retrieval as **wayfinding**:
+RIHU reframes retrieval for **explainable semantic navigation**:
 
-* **Distance** becomes *aboutness* (near = relevant).
-* **Density** becomes *salience* (many instances = influential).
-* **Containment** becomes *context* (inside = framing meaning).
+| Geometric property | Meaning                                 |
+| ------------------ | --------------------------------------- |
+| **Distance**       | Aboutness (near = relevant)             |
+| **Density**        | Salience (many Instances = influential) |
+| **Containment**    | Context (inside = framing meaning)      |
 
-This makes the retriever’s behavior **legible**: instead of opaque scores, you can point to a map and say, *“We stood here, where these Classes converge; we pulled events from this neighborhood; and these broader Classes formed the room we were in.”*
+Retrieval becomes **legible**:
+you can literally *point to the region* in the KAG Universe where meaning was found.
 
 ---
 
@@ -229,159 +204,412 @@ This makes the retriever’s behavior **legible**: instead of opaque scores, you
 
 ### Requirements
 
-* Python **3.9+**
-* `numpy`
+- Python **3.9+**
+- Packages: `numpy`, `openai`, `tiktoken`  
+  *(install automatically via `requirements.txt`)*
 
-### Install
+### Setup
+
+1. Clone or download this repository, and make sure the following three files are in the **same folder**.
+Note that `sample.py` and `holmes.py` are located in the **sample** directory.:
+
+```
+sample.py
+rihu.py
+holmes.txt
+```
+
+**About `holmes.txt`**
+
+   The file `holmes.txt` contains the full English text of *The Adventures of Sherlock Holmes* by **Arthur Conan Doyle**.  
+   The source text was obtained from [Project Gutenberg](https://www.gutenberg.org/ebooks/1661)  
+   (EBook #1661, Public Domain in the USA).
+
+   The **Project Gutenberg header and license notice have been removed** for data-processing convenience.  
+   The underlying literary work is in the **public domain**, and **no Project Gutenberg trademarks are used** in this repository.
+
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-# (or) pip install numpy
+# or manually
+pip install numpy openai tiktoken
 ```
+
+3. Set your OpenAI API key:
+
+   * **macOS / Linux**
+
+     ```bash
+     export OPENAI_API_KEY="sk-..."
+     ```
+   * **Windows (PowerShell)**
+
+     ```bash
+     $env:OPENAI_API_KEY="sk-..."
+     ```
+   * **Windows (Command Prompt)**
+
+     ```bash
+     set OPENAI_API_KEY=sk-...
+     ```
 
 ### Run the demo
 
 ```bash
-python kag.py
+python sample.py
 ```
 
-You’ll see:
+The script will automatically:
 
-* Optimization stats
-* A few HF and Class summaries
-* Objective search results for a small target set
-* A subjective search from a synthetic “18th century Paris” observer
+1. Read **`holmes.txt`**
+2. Build or load the geometric **KAG Universe** (`holmes/universe.json`, `axes.json`, `searches.json`)
+3. Run both **Objective** and **Subjective** RIHU searches
+4. Save results and print a digest to the console
+
+You’ll see output like:
+
+```
+[RIHU] Building new universe from holmes.txt -> holmes/
+[Normalize] Mapping seed classes (typo/variant correction):
+  - 'holmes' → sherlock holmes  (exact/alias match)
+  - 'adler' → irene adler  (fuzzy: 'Irene Adler', score=0.97)
+[Search] Objective from seed classes (mapped): ['sherlock holmes', 'irene adler']
+[Search] Subjective from centroid → nearest class: sherlock holmes
+[RIHU] Saved search results -> holmes/searches.json
+
+===== Objective (top neighbors) =====
+  - HF[hf_012]: d=0.214 classes=holmes, watson, crime | "Holmes looked at me and laughed..."
+  - HF[hf_031]: d=0.278 classes=adler, disguise, london | "Irene Adler was the woman..."
+
+===== Subjective from centroid (nearest class) =====
+  * Ctx: 19th century (r=0.58, power=0.002)
+  * Ctx: London (r=0.42, power=0.005)
+
+===== Subjective per seed class =====
+- sherlock holmes
+  - HF[hf_045]: d=0.192 classes=holmes, deduction, london | "He had an extraordinary gift..."
+- irene adler
+  - HF[hf_081]: d=0.235 classes=adler, opera, scandal | "The Woman, as Holmes called her..."
+```
+
+All generated files will appear under the new folder:
+
+```
+holmes/
+├── universe.json
+├── axes.json
+└── searches.json
+```
 
 ---
 
-## Minimal Usage Example
+## 3D Viewer
+
+Explore KAG/RIHU geometries interactively in your browser.
+
+* **Live Demo:** [https://shinmaruko1997.github.io/rihu/viewer.html](https://shinmaruko1997.github.io/rihu/viewer.html)
+* Features:
+
+  * Upload `universe.json`
+  * Choose axes and visualize 3D structure
+  * Hover to inspect Hypothetical Facts (HFs) and Classes
+  * Search by class seeds (objective / subjective)
+* Example:
+
+![Viewer Screenshot](https://github.com/user-attachments/assets/e59e28d3-56af-47cf-af78-697e2062bf12)
+
+---
+
+## Minimal Usage Example — Search Only
 
 ```python
-from kag import KnowledgeSpace
+from __future__ import annotations
 
-# 1) Build a space with explicit axes (time, space, semantics)
-ks = KnowledgeSpace(dim=3, axes=["time", "space", "semantics"], seed=7)
+import json
+import os
+import re
+import sys
+import unicodedata
+import difflib
+from pathlib import Path
+from typing import List, Dict, Any, Tuple
 
-# 2) Add anchor classes (stabilize the geometry)
-ks.add_class("time_18C", "18th century", vec=[-1.0, 0.0, 0.0], is_anchor=True)
-ks.add_class("place_paris", "Paris",       vec=[-0.8, 0.6, 0.1], is_anchor=True)
+import numpy as np
 
-# 3) Add conceptual classes
-ks.add_class("class_declaration_of_independence", "U.S. Declaration of Independence")
-ks.add_class("class_france", "France")
+# Search parameters (adjust if needed)
+SUBJ_RADIUS = 1.5
+TOPK = 12
 
-# 4) Add Hypothetical Facts (weighted by confidence/source count/etc.)
-ks.add_hf(
-    "hf_doI_1776",
-    "1776/7/4: Declaration adopted in Philadelphia",
-    class_weights={
-        "time_18C": 1.0,
-        "class_declaration_of_independence": 1.0,
-    },
-)
+# Sentence splitting regex (kept for compatibility)
+_SENT_SPLIT = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9\"\\(\\[])')
 
-ks.add_hf(
-    "hf_paris_revolutionary_ideas",
-    "18C Paris: Revolutionary ideas spread",
-    class_weights={
-        "time_18C": 1.0, "place_paris": 0.9, "class_france": 0.8,
-    },
-)
+# Fuzzy matching threshold
+FUZZY_MIN_RATIO = 0.72
 
-# 5) Optimize (alternate HF & Class updates with damping and scale control)
-ks.optimize(max_iters=300, alpha=0.35, tol=1e-4,
-            scale_ref="anchors", target_mean_dist=1.0, verbose=False)
+# Import RIHU
+from rihu import KAGUniverse
 
-# 6) Inspect
-print(ks.describe_hf("hf_doI_1776"))
-print(ks.describe_class("class_declaration_of_independence"))
 
-# 7) Retrieve: Objective search by class-set and proximity
-hits = ks.objective_search(
-    target_classes=["class_declaration_of_independence"], k=5, radius_factor=1.25
-)
-for key, score in hits:
-    print(key, score)
+def fail(msg: str):
+    print(f"[ERROR] {msg}")
+    sys.exit(1)
+
+
+# -----------------------------
+# Seed class normalization & mapping
+# -----------------------------
+
+def _norm_name(s: str) -> str:
+    """Apply NFKC normalization, lowercase, remove punctuation, and collapse spaces."""
+    s = unicodedata.normalize("NFKC", s or "")
+    s = s.strip().lower()
+    s = s.replace("-", " ")
+    s = re.sub(r"[^\w\s]", "", s)
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+
+def _build_class_alias_index(uni: KAGUniverse) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
+    """
+    Build:
+      - alias_to_canonical: normalized alias/name -> canonical class name
+      - canonical_to_aliases: canonical class name -> list of display aliases (including canonical)
+    """
+    alias_to_canonical: Dict[str, str] = {}
+    canonical_to_aliases: Dict[str, List[str]] = {}
+    for cname, node in uni.classes.items():
+        if not cname:
+            continue
+        canonical_to_aliases.setdefault(cname, [])
+        # include canonical
+        canonical_to_aliases[cname].append(cname)
+        alias_to_canonical[_norm_name(cname)] = cname
+        # include aliases
+        for a in (node.aliases or []):
+            if not a:
+                continue
+            canonical_to_aliases[cname].append(a)
+            alias_to_canonical[_norm_name(a)] = cname
+    # deduplicate alias lists while preserving order
+    for k, arr in canonical_to_aliases.items():
+        seen = set()
+        dedup = []
+        for x in arr:
+            if x not in seen:
+                seen.add(x)
+                dedup.append(x)
+        canonical_to_aliases[k] = dedup
+    return alias_to_canonical, canonical_to_aliases
+
+
+def _best_fuzzy_match(
+    query: str,
+    alias_to_canonical: Dict[str, str],
+    canonical_to_aliases: Dict[str, List[str]],
+    min_ratio: float = FUZZY_MIN_RATIO,
+) -> Tuple[str | None, str | None, float]:
+    """
+    Return (canonical_name, matched_alias, ratio) or (None, None, 0.0)
+    1) Try exact normalized match
+    2) If not found, perform fuzzy matching against all aliases
+    """
+    if not query:
+        return None, None, 0.0
+    qn = _norm_name(query)
+
+    # 1) Exact normalized match
+    if qn in alias_to_canonical:
+        can = alias_to_canonical[qn]
+        aliases = canonical_to_aliases.get(can, [can])
+        display = query if query in aliases else aliases[0]
+        return can, display, 1.0
+
+    # 2) Fuzzy match against all aliases
+    all_aliases = []
+    for _, aliases in canonical_to_aliases.items():
+        for a in aliases:
+            all_aliases.append(a)
+
+    norm_aliases = [_norm_name(a) for a in all_aliases]
+    best_idx = -1
+    best_ratio = 0.0
+    for i, na in enumerate(norm_aliases):
+        r = difflib.SequenceMatcher(None, qn, na).ratio()
+        if r > best_ratio:
+            best_ratio = r
+            best_idx = i
+
+    if best_idx >= 0 and best_ratio >= min_ratio:
+        matched_alias = all_aliases[best_idx]
+        can = alias_to_canonical.get(_norm_name(matched_alias))
+        return can, matched_alias, best_ratio
+
+    return None, None, 0.0
+
+
+def map_seed_classes(uni: KAGUniverse, seeds: List[str], verbose: bool = True) -> List[str]:
+    """
+    Map user-provided seed class strings to the closest existing canonical Class names in the universe.
+    Handles typos and variations via normalization + fuzzy matching.
+    """
+    alias_to_canonical, canonical_to_aliases = _build_class_alias_index(uni)
+    out: List[str] = []
+    print("\n[Normalize] Mapping seed classes (typo/variant correction):")
+    for s in seeds:
+        can, alias, score = _best_fuzzy_match(s, alias_to_canonical, canonical_to_aliases, FUZZY_MIN_RATIO)
+        if can:
+            if verbose:
+                if _norm_name(s) == _norm_name(alias):
+                    print(f"  - '{s}' → {can}  (exact/alias match)")
+                else:
+                    print(f"  - '{s}' → {can}  (fuzzy: '{alias}', score={score:.3f})")
+            out.append(can)
+        else:
+            print(f"  - '{s}' → (no close match; using original)")
+            out.append(s)
+    return out
+
+
+# -----------------------------
+# Universe loading only (no build)
+# -----------------------------
+
+def load_universe(uname: str) -> KAGUniverse:
+    """
+    Load an existing <uname>/universe.json.
+    If not found, raise an error (no build performed).
+    """
+    udir = Path(uname)
+    ujson = udir / "universe.json"
+    if not (udir.exists() and ujson.exists()):
+        fail(f"Universe file not found: {ujson}\n"
+             f"Please build the universe first using RIHU's build process.")
+    print(f"[RIHU] Loading prebuilt universe: {ujson}")
+    data = json.loads(ujson.read_text(encoding="utf-8"))
+    return KAGUniverse.from_json(data)
+
+
+# -----------------------------
+# Geometry helpers
+# -----------------------------
+
+def nearest_class_to_point(uni: KAGUniverse, point: List[float]) -> str | None:
+    best = None
+    best_d = float("inf")
+    for name, node in uni.classes.items():
+        if node.coord is None:
+            continue
+        d = float(np.linalg.norm(np.array(node.coord) - np.array(point)))
+        if d < best_d:
+            best_d = d
+            best = name
+    return best
+
+
+def centroid_of_hfs(uni: KAGUniverse, hf_ids: List[str]) -> List[float] | None:
+    coords = []
+    for hid in hf_ids:
+        hf = uni.hfs.get(hid)
+        if hf and hf.coord is not None:
+            coords.append(hf.coord)
+    if not coords:
+        return None
+    arr = np.array(coords, dtype=float)
+    return arr.mean(axis=0).tolist()
+
+
+# -----------------------------
+# Search orchestration
+# -----------------------------
+
+def run_searches(uname: str, classes: List[str]):
+    # Load prebuilt universe
+    uni = load_universe(uname)
+
+    # 1) Normalize and map seed class names
+    mapped_classes = map_seed_classes(uni, classes, verbose=True)
+
+    # 2) Objective search from mapped classes
+    print("\n[Search] Objective from seed classes (mapped):", mapped_classes)
+    res_obj = uni.objective_search(class_names=mapped_classes, k=TOPK)
+
+    # 3) Compute centroid of retrieved HFs → find nearest class and run subjective search
+    hf_ids = [r["hf_id"] for r in res_obj.get("neighbors", [])]
+    hf_centroid = centroid_of_hfs(uni, hf_ids)
+
+    subj_from = None
+    res_sub_from_centroid = None
+    if hf_centroid is not None:
+        subj_from = nearest_class_to_point(uni, hf_centroid)
+        if subj_from is not None:
+            print(f"[Search] Subjective from centroid → nearest class: {subj_from}")
+            res_sub_from_centroid = uni.subjective_search(vantage=subj_from, k=TOPK, radius=SUBJ_RADIUS)
+        else:
+            print("[Search] No suitable vantage class found near centroid.")
+    else:
+        print("[Search] No HF centroid computed (no neighbors).")
+
+    # 4) Run subjective search for each mapped class individually
+    res_sub_each: Dict[str, Any] = {}
+    for c in mapped_classes:
+        print(f"[Search] Subjective per class: {c}")
+        res_sub_each[c] = uni.subjective_search(vantage=c, k=TOPK, radius=SUBJ_RADIUS)
+
+    # 5) Save search results and print digest
+    out_dir = Path(uname)
+    results = {
+        "seed_classes_input": classes,
+        "seed_classes_mapped": mapped_classes,
+        "objective": res_obj,
+        "subjective_from_centroid_vantage": subj_from,
+        "subjective_from_centroid": res_sub_from_centroid,
+        "subjective_each": res_sub_each,
+    }
+    (out_dir / "searches.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\n[RIHU] Saved search results -> {out_dir / 'searches.json'}")
+
+    dump_digest(res_obj, res_sub_from_centroid, res_sub_each)
+
+
+def dump_digest(res_obj: Dict[str, Any], res_sub_from_centroid: Dict[str, Any] | None, res_sub_each: Dict[str, Any]):
+    """Pretty-print search summaries to stdout."""
+    def hf_lines(neis: List[Dict[str, Any]], n=5):
+        lines = []
+        for r in neis[:n]:
+            d = r.get('distance', 0.0)
+            classes = r.get('classes') or []
+            text = r.get('text') or ""
+            lines.append(f"  - HF[{r['hf_id']}]: d={d:.3f} classes={', '.join(classes[:4])} | {text[:120]}...")
+        return "\n".join(lines) if lines else "  (none)"
+
+    print("\n===== Objective (top neighbors) =====")
+    print(hf_lines(res_obj.get("neighbors", []), n=8))
+
+    print("\n===== Subjective from centroid (nearest class) =====")
+    if res_sub_from_centroid:
+        neis = res_sub_from_centroid.get("neighbors") or res_sub_from_centroid.get("inside", [])
+        print(hf_lines(neis, n=8))
+        ctx = res_sub_from_centroid.get("context_classes", [])[:8]
+        for c in ctx:
+            r = c.get('radius', 0.0) or 0.0
+            p = c.get('power', 0.0) or 0.0
+            print(f"  * Ctx: {c['class']} (r={r:.3f}, power={p:.3g})")
+    else:
+        print("  (none)")
+
+    print("\n===== Subjective per seed class =====")
+    for k, v in res_sub_each.items():
+        print(f"- {k}")
+        neis = v.get("neighbors") or v.get("inside", [])
+        print(hf_lines(neis, n=6))
+
+
+if __name__ == "__main__":
+    universe_name = "holmes"
+    seed_classes = ["holmes", "adler"]  # Demo input (typo mapping visible)
+    run_searches(universe_name, seed_classes)
 ```
-
----
-
-## API Sketch
-
-> See `kag.py` for full docstrings.
-
-### Construction
-
-* `KnowledgeSpace(dim=3, axes=[...], seed=42)`
-* `add_class(key, name=None, vec=None, is_anchor=False)`
-* `add_hf(key, name, class_weights: Dict[str, float])`
-
-### Optimization
-
-* `optimize(max_iters=200, alpha=0.3, anchor_reg=0.0, tol=1e-4, scale_ref="anchors", target_mean_dist=1.0, verbose=False)`
-
-### Metrics
-
-* `class_centroid(class_key) -> np.ndarray | None`
-* `class_influence(class_key, eps=1e-6) -> {centroid, radius, volume, power}`
-
-### Retrieval
-
-* `objective_search(target_classes: List[str], k=10, radius_factor=1.0, min_class_power=0.0) -> List[Tuple[str, float]]`
-* `subjective_search(observer_pos: np.ndarray, k_near=10, radius=1.0, power_threshold=0.0, k_context=5) -> Dict`
-
-### Introspection
-
-* `describe_class(class_key) -> str`
-* `describe_hf(hf_key) -> str`
-
----
-
-## Design Notes
-
-* **Anchors vs. flexibility.** Use anchors for stability, but keep **α** and **regularization** modest to allow HFs to pull Classes where evidence suggests.
-* **Weights = trust.** Put more weight on reliable sources; set unknown/low-trust elements to small or zero.
-* **Scale normalization.** After each iteration, rescale to keep distances meaningful across runs.
-* **Dimensionality.** Start with (D=3); add axes only if they provide continuity and broad coverage (per the 1–3 criteria above).
-
----
-
-## Extending KAG
-
-* **Better radii:** Use true minimal enclosing balls (Welzl’s algorithm) instead of max-distance-to-centroid.
-* **Axis learning:** Learn axes from data (e.g., time/place inferred from text) while still allowing anchors.
-* **LLM-assisted HF extraction:** Turn Representations (docs, transcripts, media) into HFs with provenance.
-* **Confidence propagation:** Let HF-level confidence affect Class updates and retrieval scores.
-* **Multi-index fusion:** Hybridize KAG geometry with classic dense retrieval for production RAG.
-
----
-
-## Limitations
-
-* **Approximate geometry.** The current radius/volume approximations are simple and may over/under-estimate influence.
-* **Input sensitivity.** Anchors and initial scales can affect convergence; inspect with `verbose=True`.
-* **No automatic HF extraction.** This prototype assumes HFs and Class membership are already identified.
-
----
-
-## Project Structure
-
-```
-.
-├── kag.py                # Reference implementation & demo runner
-├── requirements.txt      # numpy (and friends if you add them)
-└── README.md             # This file
-```
-
----
-
-## Contributing
-
-Issues and PRs are welcome! Please:
-
-* Keep PRs small and well-documented.
-* Add or update tests/demos where relevant.
-* Describe design tradeoffs in the PR body.
 
 ---
 
@@ -397,76 +625,27 @@ SPDX-License-Identifier: MIT
 
 ## Citation
 
-If you use KAG in academic or industrial work, please cite this repository and concept:
+If you use this repository in academic or industrial work, please cite both **RIHU** and **KAG**:
 
-```
-@software{KAG_2025,
-  title   = {KAG: Knowledge as Geometry},
-  author  = {H.Kiriyama},
+```bibtex
+@software{RIHU_2025,
+  title   = {RIHU: Retrieval In the Hypothetical Universe (built on KAG: Knowledge as Geometry)},
+  author  = {H. Kiriyama},
   year    = {2025},
   license = {MIT},
-  url     = {https://github.com/shinmaruko1997/kag}
+  url     = {https://github.com/shinmaruko1997/rihu}
 }
 ```
 
----
-
-## Appendix: Demo Snippets
-
-**Build & optimize a demo space:**
-
-```python
-from kag import build_demo_space
-
-ks = build_demo_space()
-stats = ks.optimize(max_iters=300, alpha=0.35, tol=1e-4,
-                    scale_ref="anchors", target_mean_dist=1.0)
-print("Optimization stats:", stats)
-```
-
-**Objective search over a class set:**
-
-```python
-hits = ks.objective_search(
-    ["class_declaration_of_independence", "class_united_states"],
-    k=5, radius_factor=1.25
-)
-for k, s in hits:
-    print(f"{k}: {s:.3f} -> {ks.hfs[k].name}")
-```
-
-**Subjective search from an observer near “18C Paris”:**
-
-```python
-import numpy as np
-
-center = np.mean(np.stack([
-    ks.classes["time_18C"].vec,
-    ks.classes["place_paris"].vec
-]), axis=0)
-
-view = ks.subjective_search(observer_pos=center,
-                            k_near=5, radius=0.6,
-                            power_threshold=0.001, k_context=5)
-
-print("Near HFs:", view["near_hfs"])
-print("Context Classes:", view["context_classes"])
-print("Peripheral:", view["peripheral"])
-```
-
----
-
 ## Discussion and Next Steps
 
-This prototype demonstrates the core mechanics of KAG — knowledge as a geometric space.  
-The next directions include:
-- Formal convergence analysis and loss formulation  
-- Integration with open-source RAG pipelines  
-- Empirical evaluation on public datasets  
-- Visualization and interaction tools  
+This repository presents **KAG (Knowledge as Geometry)** as a new way to represent knowledge,
+and **RIHU (Retrieval In the Hypothetical Universe)** as its first retrieval paradigm.
 
-Contributions and critiques are very welcome.
+Future directions include:
 
----
+* Integration with open-source RAG systems
+* Empirical evaluation on public datasets
+* Visualization and interactive exploration tools
 
-> “Distance is relationship; density is influence.” — KAG
+> “Distance is relationship; density is influence.” — *KAG Universe*
