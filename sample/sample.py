@@ -485,12 +485,6 @@ def dump_digest(res_obj: Dict[str, Any], res_sub_from_centroid: Dict[str, Any] |
 
 
 if __name__ == "__main__":
-    # If you prefer CLI args, you can wire sys.argv here; below is a simple default.
-    if len(sys.argv) >= 2:
-        universe_name = sys.argv[1]
-        seed_classes = sys.argv[2:] if len(sys.argv) > 2 else ["United States", "Declaration of Independence"]
-    else:
-        universe_name = "holmes"
-        seed_classes = ["holmes", "adler"]  # note intentional typo for demo
-
+    universe_name = "holmes"
+    seed_classes = ["holmes", "adler"]
     run_searches(universe_name, seed_classes)
