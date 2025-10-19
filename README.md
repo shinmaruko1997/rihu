@@ -307,6 +307,7 @@ holmes/
 ## 3D Viewer
 
 Explore KAG/RIHU geometries interactively in your browser.
+A sample dataset universe.json, created based on The Adventures of Sherlock Holmes by Arthur Conan Doyle, is stored in sample/holmes.
 
 * **Live Demo:** [https://shinmaruko1997.github.io/rihu/viewer.html](https://shinmaruko1997.github.io/rihu/viewer.html)
 * Features:
@@ -322,6 +323,8 @@ Explore KAG/RIHU geometries interactively in your browser.
 ---
 
 ## Minimal Usage Example — Search Only
+
+If you also want to perform Universe Construction, please use the full version sample code located at sample/sample.py.
 
 ```python
 from __future__ import annotations
