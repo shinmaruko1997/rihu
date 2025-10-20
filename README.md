@@ -107,7 +107,8 @@ KAG constructs a **knowledge space** where HFs and their constituent Instances a
   An Instance **inherits** the coordinates of the HF it appears in. Thus, a Class’s position emerges from the **distribution** of its Instances across HFs.
 
 > **Why “Hypothetical”?**
-> Even in a simulated or partially modeled world, **complete, omniscient capture of all facts is not feasible**. HFs make this explicit: we reason from **what is observed and inferred**, not from a claim of total knowledge.
+> **A complete and omniscient capture of all facts is never feasible.**
+> HFs make this explicit: we reason from **what is observed and inferred**, not from a claim of total knowledge.
 
 
 ### 3) Coordinates & Axes (Choosing the Frame)
