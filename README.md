@@ -68,12 +68,86 @@ RIHU builds on that geometry to enable **structured, contextual retrieval**.
 
 ## Core Concepts (KAG Foundation)
 
-* **Hypothetical Fact (HF)** — a proposition inferred from evidence (e.g., “1776-07-04: Declaration adopted in Philadelphia”).
-* **Instance** — an occurrence of a Class within a specific HF (e.g., “Declaration of Independence” appearing in multiple HFs).
-* **Class** — a shared conceptual pattern among Instances (e.g., “18th century”, “Paris”, “Albert Einstein”).
-* **Representation** — human-facing form (text, media) from which HFs are extracted.
+KAG treats the world as a space **filled only with facts**.
+Since the totality of facts is **unknowable**, we work with **Hypothetical Facts (HFs)**—propositions **inferred** from observations, traces, or representations. KAG builds a **knowledge space** where HFs, **Instances**, and **Classes** are projected into a **uniform geometric model**.
 
-All elements — including time and place — are modeled uniformly as Classes and Instances, forming a **flat geometry of meaning**.
+### 1) Entities
+
+* **Hypothetical Fact (HF)**
+  An inferred, context-grounded proposition derived from observations or media.
+  *Example:* “**1776-07-04**: The **Declaration of Independence** was adopted in **Philadelphia**.”
+
+* **Instance**
+  A concrete occurrence of a Class *within a specific HF*. It identifies a **particular** concept/component *as observed inside that HF*.
+  *Example:* If “Declaration of Independence” appears in 5 HFs, there are **5 Instances** of that Class.
+
+* **Class**
+  The **unique** pattern that groups similar Instances across HFs. A Class is **one per concept**, and its Instances are the many.
+  *Example:* The Class **“Declaration of Independence”** is unique, even if it has many Instances.
+
+* **Representation**
+  A human-facing artifact (text, video, visualization, etc.) that we **extract HFs from**.
+  *Example:* A documentary synthesized from many HFs about the Declaration is a **Representation**.
+
+> **Uniformity Principle**
+> **Time** and **Place** are modeled **as Classes and Instances** just like any other concept. This removes schema-driven bias and lets every kind of information be treated **flatly** in the same geometry.
+
+
+### 2) Knowledge Space & Projection
+
+KAG constructs a **knowledge space** where HFs and their constituent Instances are embedded. Classes are **projected** as the shared structures that tie Instances together.
+
+* Each HF anchors a **local configuration** of Instances (people, events, artifacts, times, places…).
+* Each Class summarizes **where** and **how** its Instances appear across HFs.
+* Representations are **inputs** to extraction; we do not directly reason over them as truth—only via the HFs they yield.
+
+* **Class is unique; Instances are many.**
+  A Class exists **once**; each appearance **per HF** is a distinct Instance.
+* **HF coordinates = Instance coordinates.**
+  An Instance **inherits** the coordinates of the HF it appears in. Thus, a Class’s position emerges from the **distribution** of its Instances across HFs.
+
+> **Why “Hypothetical”?**
+> Even in a simulated or partially modeled world, **complete, omniscient capture of all facts is not feasible**. HFs make this explicit: we reason from **what is observed and inferred**, not from a claim of total knowledge.
+
+
+### 3) Coordinates & Axes (Choosing the Frame)
+
+The knowledge space is given coordinates in $\mathbb{R}^D$. Axes are **broad abstractions of Classes** that provide continuity and coverage:
+
+1. **Axis from Class abstractions**
+   Use abstractions like **Location**, **Organization**, **Time**, **Discipline** when the observer or data suggests them.
+2. **Continuity & Connectivity**
+   Prefer axes that relate to **many Classes** and exhibit **smooth variation** (e.g., time is continuous and widely presupposed).
+3. **Inclusion**
+   Favor axes whose related Classes **contain** many others (i.e., “large” Classes that organize others).
+
+> **Anchors**
+> Concrete, interpretable Classes (e.g., historical periods, cities, known entities) can be used as **anchors** to stabilize the frame. Axes can be proposed or initialized with LLM assistance, while preserving interpretability.
+
+
+### 4) Examples
+
+* **Event HF:**
+  “**1776-07-04**: **Declaration of Independence** adopted in **Philadelphia**.”
+  Includes Instances of Classes: *18th century*, *Declaration of Independence*, *Philadelphia*, *United States*.
+
+* **Relational HF:**
+  “One week before **XX**, **A** and **B** conversed at **C**.”
+  Includes Instances of Classes: *A*, *B*, *C (place)*, *time offset*, *XX (reference event)*.
+
+* **Representation:**
+  A documentary compiled from HFs about the Declaration is a **Representation**. We extract HFs **from** it; we do not equate the narrative with ground truth.
+
+
+### 5) What the Geometry Buys Us
+
+Because all elements—including time and place—are **Classes and Instances in one flat space**, we can compute **interpretable** geometric properties:
+
+* **Nearness** ⇒ *aboutness / relatedness*
+* **Density** ⇒ *salience / influence*
+* **Containment** ⇒ *context / framing*
+
+These properties feed downstream metrics (e.g., centroids, enclosing volumes, power) and enable **RIHU** to perform retrieval as **wayfinding** inside this geometric knowledge space.
 
 ---
 
