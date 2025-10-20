@@ -33,10 +33,9 @@ Rather than lexical matching, retrieval becomes spatial navigation: **nearby = r
 
 This repository provides:
 
-* A reference Python implementation of the **KAG core** and the **RIHU retriever**
+* A reference Python implementation of the **KAG Universe Construction** and the **RIHU retriever**
 * Both **objective (world-centric)** and **subjective (observer-centric)** search modes
 * Influence and context metrics (centroid / radius / volume / power)
-* A small demonstration dataset and CLI runner
 
 ---
 
