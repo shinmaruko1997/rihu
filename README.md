@@ -169,6 +169,11 @@ Good axes:
 
 ## Universe Construction
 
+> The **Universe** in KAG corresponds to what a traditional RAG system would call an **index** —
+> the structured space in which knowledge is stored and retrieved.
+> However, rather than a static vector index, KAG uses the term *Universe* to emphasize its **geometric and dynamic nature**:
+> a manifold of Hypothetical Facts, Classes, and Instances, whose relationships are explicitly modeled as geometry.
+
 The following section outlines how these geometric ideas are implemented concretely in RIHU’s Python prototype.
 
 1. **Propose axes** (LLM, single call, **K in [3,10]**).
