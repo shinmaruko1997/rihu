@@ -256,6 +256,27 @@ RIHU supports two complementary retrieval modes:
 
 ---
 
+### 3) Detective Search — *Inference from the unseen*　(Prototype — Not Yet Implemented)
+
+**Intent:**
+Infer **unobserved or hypothetical facts** by reasoning through the geometric relationships of known Classes —
+searching not for what *is*, but for what *must be*, given the structure of the Universe.
+
+**Conceptual flow:**
+
+1. **Identify involved Classes** — determine which Classes are likely to participate in the unseen fact (e.g., *detective*, *crime scene*, *witness*).
+2. **Estimate the geometric barycenter** — compute the centroid of these Classes’ coordinates to hypothesize the most probable region for the missing Hypothetical Fact (HF).
+3. **Survey nearby evidence** — collect related Classes, adjacent HFs, and contextual information within that region.
+4. **Invoke generative reasoning** — provide these collected elements (Classes, HFs, Context) to a generative model to infer the *most plausible unobserved fact*.
+
+**Philosophical intent:**
+
+* *Inference as retrieval* — the act of “searching” extends to reasoning about the unseen.
+* *Geometry as hypothesis space* — positional relationships suggest what *ought to exist*, even if not yet observed.
+* *Generative triangulation* — large language models act as geometric interpreters, connecting partial evidence into coherent hypothetical facts.
+
+---
+
 ### Choosing a Mode
 
 * Use **Objective RIHU** for top-down, phenomenon-centric exploration.
