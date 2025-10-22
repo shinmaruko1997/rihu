@@ -175,8 +175,8 @@ Good axes are those that preserve interpretability and continuity, providing sta
 Good axes:
 
 1. Are abstractions of Classes (e.g., “location”, “organization”, “time”).
-2. Connect many other Classes with smooth, continuous variation.
-3. Provide large, interpretable “containers” of meaning (hierarchical or inclusive structure).
+2. Connect many other Classes with continuity.
+3. Provide large, interpretable “containers” of meaning.
 
 **Anchor Classes** (like time bins or known locations) stabilize the coordinate frame via regularization and alignment.
 
