@@ -154,15 +154,35 @@ These properties feed downstream metrics (e.g., centroids, enclosing volumes, po
 ## The KAG Universe: Coordinate System
 
 All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).
+Each **Hypothetical Fact (HF)** is located within this coordinate system according to the structure of Classes and Instances that define it.
+
+### Coordinate Principle
+
+In the **ideal state**—where all axes are fully defined and every dimension is sufficiently decomposed—
+the coordinate of each **HF** is **strictly unique**.
+However, in **practical implementations**, constraints such as axis granularity, projection precision, or dimensional reduction may cause
+**continuously adjacent HFs** to be placed at the **same coordinate**.
+This overlap represents a limit of the coordinate resolution, not a logical contradiction: such HFs can be treated as occupying a **shared micro-region** in the KAG Universe.
+
+> **Principle Summary:**
+> The KAG coordinate system aspires to one-to-one mapping between meaning and position,
+> yet accepts controlled degeneracy as a natural outcome of finite and approximated geometry.
+
+### Good axes: choosing and defining the frame
+
+Good axes are those that preserve interpretability and continuity, providing stable reference for HF positioning.
+
 Good axes:
 
-1. Are abstractions of Classes (e.g., “location”, “organization”).
-2. Connect many other Classes with continuity.
-3. Provide large, interpretable “containers” of meaning.
+1. Are abstractions of Classes (e.g., “location”, “organization”, “time”).
+2. Connect many other Classes with smooth, continuous variation.
+3. Provide large, interpretable “containers” of meaning (hierarchical or inclusive structure).
 
-**Anchor Classes** (like time bins or known locations) stabilize the coordinate frame via regularization.
-> In practice, **axes and anchor coordinates can also be suggested or initialized by large language models (LLMs)** — for example, inferring temporal, spatial, or semantic anchors from descriptive text or datasets.
-> This enables partially automated construction of the KAG Universe, while keeping its geometric interpretability intact.
+**Anchor Classes** (like time bins or known locations) stabilize the coordinate frame via regularization and alignment.
+
+> In practice, **axes and anchors can also be suggested or initialized by large language models (LLMs)** —
+> for example, by inferring temporal, spatial, or semantic structures from text or datasets.
+> This allows partial automation of Universe construction while maintaining geometric interpretability.
 
 ---
 
@@ -371,26 +391,55 @@ You’ll see output like:
 
 ```
 [RIHU] Building new universe from holmes.txt -> holmes/
+[RIHU] Loading prebuilt universe: holmes\universe.json
+
 [Normalize] Mapping seed classes (typo/variant correction):
-  - 'holmes' → sherlock holmes  (exact/alias match)
-  - 'adler' → irene adler  (fuzzy: 'Irene Adler', score=0.97)
-[Search] Objective from seed classes (mapped): ['sherlock holmes', 'irene adler']
-[Search] Subjective from centroid → nearest class: sherlock holmes
-[RIHU] Saved search results -> holmes/searches.json
+  - 'holmes' → Holmes  (exact/alias match)
+  - 'adler' → (no close match; using original)
+
+[Search] Objective from seed classes (mapped): ['Holmes', 'adler']
+[Search] Subjective from centroid → nearest class: blue stone
+[Search] Subjective per class: Holmes
+[Search] Subjective per class: adler
+
+[RIHU] Saved search results -> holmes\searches.json
 
 ===== Objective (top neighbors) =====
-  - HF[hf_012]: d=0.214 classes=holmes, watson, crime | "Holmes looked at me and laughed..."
-  - HF[hf_031]: d=0.278 classes=adler, disguise, london | "Irene Adler was the woman..."
+  - HF[hf_hf28]: d=0.373 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
+  - HF[hf_hf17]: d=0.377 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
+  - HF[hf_hf18]: d=0.377 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
+  - HF[hf_hf26]: d=0.391 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
+  - HF[hf_hf27]: d=0.450 classes=Holmes, Stoke Moran | Holmes planned to visit Stoke Moran to investigate the case further....
+  - HF[hf_hf29]: d=0.744 classes=Holmes, Dr. Roylott, will | Holmes discovered that the deceased wife’s will indicated financial motives for Dr. Roylott to prevent his stepdaughters...
 
 ===== Subjective from centroid (nearest class) =====
-  * Ctx: 19th century (r=0.58, power=0.002)
-  * Ctx: London (r=0.42, power=0.005)
+  - HF[hf_hf17]: d=0.224 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
+  - HF[hf_hf18]: d=0.224 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
+  - HF[hf_hf28]: d=0.241 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
+  - HF[hf_hf27]: d=0.274 classes=Holmes, Stoke Moran | Holmes planned to visit Stoke Moran to investigate the case further....
+  - HF[hf_hf12]: d=0.424 classes=Miss Hunter, Copper Beeches | Miss Hunter observed that one wing of the house was not inhabited....
+  - HF[hf_hf9]: d=0.454 classes=Miss Hunter, giant dog | Miss Hunter saw a giant dog on the lawn at night....
+  - HF[hf_hf29]: d=0.497 classes=Holmes, Dr. Roylott, will | Holmes discovered that the deceased wife’s will indicated financial motives for Dr. Roylott to prevent his stepdaughters...
+  - HF[hf_hf26]: d=0.505 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
+  * Ctx: blue stone (r=0.842, power=3.58)
+  * Ctx: Countess of Morcar (r=0.688, power=3.68)
+  * Ctx: Isa Whitney (r=0.824, power=2)
+  * Ctx: Mary (r=1.120, power=0.646)
+  * Ctx: Dr. Roylott (r=1.587, power=0.264)
+  * Ctx: £1000 (r=0.464, power=17.6)
+  * Ctx: narrator (r=1.364, power=0.282)
+  * Ctx: Mrs. Moulton (r=1.329, power=0.367)
 
 ===== Subjective per seed class =====
-- sherlock holmes
-  - HF[hf_045]: d=0.192 classes=holmes, deduction, london | "He had an extraordinary gift..."
-- irene adler
-  - HF[hf_081]: d=0.235 classes=adler, opera, scandal | "The Woman, as Holmes called her..."
+- Holmes
+  - HF[hf_hf4]: d=0.268 classes=Mr. Rucastle, Miss Hunter, drawing-room | Mr. Rucastle told funny stories to Miss Hunter in the drawing-room....
+  - HF[hf_hf8]: d=0.357 classes=Mr. Rucastle, Miss Hunter, mastiff | Mr. Rucastle warned Miss Hunter not to go near the mastiff at night....
+  - HF[hf_hf28]: d=0.373 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
+  - HF[hf_hf17]: d=0.377 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
+  - HF[hf_hf18]: d=0.377 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
+  - HF[hf_hf26]: d=0.391 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
+- adler
+  (none)
 ```
 
 All generated files will appear under the new folder:
