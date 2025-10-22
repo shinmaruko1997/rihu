@@ -154,7 +154,7 @@ These properties feed downstream metrics (e.g., centroids, enclosing volumes, po
 ## The KAG Universe: Coordinate System
 
 All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).
-Each **Hypothetical Fact (HF)** is located within this coordinate system according to the structure of Classes and Instances that define it.
+Each **HF** is located within this coordinate system according to the structure of Classes and Instances that define it.
 
 ### Coordinate Principle
 
