@@ -775,20 +775,6 @@ SPDX-License-Identifier: MIT
 
 ---
 
-## Citation
-
-If you use this repository in academic or industrial work, please cite both **RIHU** and **KAG**:
-
-```bibtex
-@software{RIHU_2025,
-  title   = {RIHU: Retrieval In the Hypothetical Universe (built on KAG: Knowledge as Geometry)},
-  author  = {H. Kiriyama},
-  year    = {2025},
-  license = {MIT},
-  url     = {https://github.com/shinmaruko1997/rihu}
-}
-```
-
 ## Discussion and Next Steps
 
 This repository presents **KAG (Knowledge as Geometry)** as a new way to represent knowledge,
