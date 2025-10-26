@@ -214,6 +214,7 @@ Discover what the world “knows” about a topic, by locating regions where rel
 4. **Survey the neighborhood** — identify nearby HFs or regions with overlapping Class memberships.  
 5. **Interpret density** — dense regions imply high influence or conceptual richness.
 
+
 ### 2) Subjective Retrieval
 
 **Intent:** Explore the world **from within** — from the viewpoint of an observer in the KAG Universe.
@@ -230,6 +231,7 @@ Discover what the world “knows” about a topic, by locating regions where rel
 * **Context-first retrieval** — the “room” around the observer matters.  
 * **Periphery awareness** — sense the nearby unknown.  
 * **Bias transparency** — by declaring a vantage, bias becomes explicit.
+
 
 ### 3) Detective Search (Prototype — Not Yet Implemented)
 
@@ -249,7 +251,6 @@ Infer **unobserved or hypothetical facts** by reasoning through the geometric re
 * *Geometry as hypothesis space* — positional relationships suggest what *ought to exist*, even if not yet observed.  
 * *Generative triangulation* — large language models act as geometric interpreters, connecting partial evidence into coherent hypothetical facts.
 
----
 
 ### Choosing a Mode
 
