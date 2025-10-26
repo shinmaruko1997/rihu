@@ -7,35 +7,12 @@
 
 ---
 
-## Purpose and Scope
-
-This repository introduces **RIHU (Retrieval In the Hypothetical Universe)** —
-a prototype retrieval framework **operating inside the KAG Universe**, where knowledge is represented as geometry.
-
-RIHU is **not merely a new retrieval algorithm**.
-It is a practical exploration of how the **KAG** concept — *Knowledge as Geometry* — can transform retrieval into a spatial reasoning process.
-
-**KAG** defines how knowledge exists: as points, regions, and relations in a continuous geometric space.
-**RIHU** defines how we *move through* that space: how we locate, interpret, and retrieve meaning based on distance, density, and containment.
-
-> ⚠️ This repository introduces both a **theoretical framework (KAG)** and its **first applied search system (RIHU)**.
-> It serves as an open research artifact — a foundation for discussion, visualization, and experimental RAG integration.
-
----
-
 ## TL;DR
 
-**KAG** models knowledge as a shared geometric space of **Hypothetical Facts (HFs)**, **Classes**, and **Instances**.
-Since the totality of “all facts” is unknowable, KAG works with **Hypothetical Facts** — inferred and contextually grounded propositions.
-
-Within this **KAG Universe**, **RIHU** performs retrieval as **wayfinding**.
-Rather than lexical matching, retrieval becomes spatial navigation: **nearby = related**, **dense = influential**, **inside = contextual**.
-
-This repository provides:
-
-* A reference Python implementation of the **KAG Universe Construction** and the **RIHU retriever**
-* Both **objective (world-centric)** and **subjective (observer-centric)** search modes
-* Influence and context metrics (centroid / radius / volume / power)
+Traditional text and knowledge models analyze *flat projections* — patterns that appear when the rich, three-dimensional structure of facts and meanings is cast onto the surface of language.Even when these models use thousands of dimensions to describe those surfaces, what they explore remains essentially **the geometry of the shadow**, not the form of what casts it.  
+**RIHU** takes a different approach: it aims to **approximate and reconstruct the underlying semantic structures** that language projects.
+Instead of comparing texts within a flattened embedding space, RIHU builds an interpretable *coordinate system* in which facts and concepts appear as **points and regions** along explicit, human-readable axes.  
+This shift — from analyzing the “map of shadows” to reasoning within the “space of meaning” — enables RIHU to describe not only *how close* things are, but also *in which direction and for what reason*.
 
 ---
 
@@ -53,7 +30,7 @@ Think of **KAG** as the *map of meaning* — and **RIHU** as the *navigator* exp
 
 ## Why KAG (and why RIHU)?
 
-Traditional RAG systems retrieve by text similarity in a single embedding space.
+Traditional RAG systems retrieve by text similarity in a single embedding space.  
 KAG differs fundamentally by introducing **geometry-first semantics** — explicit, interpretable coordinates of meaning.
 
 RIHU builds on that geometry to enable **structured, contextual retrieval**.
@@ -65,27 +42,27 @@ RIHU builds on that geometry to enable **structured, contextual retrieval**.
 
 ---
 
-## Core Concepts (KAG Foundation)
+## Core Concepts
 
-KAG treats the world as a space **filled only with facts**.
+KAG treats the world as a space **filled only with facts**.  
 Since the totality of facts is **unknowable**, we work with **Hypothetical Facts (HFs)**—propositions **inferred** from observations, traces, or representations. KAG builds a **knowledge space** where HFs, **Instances**, and **Classes** are projected into a **uniform geometric model**.
 
 ### 1) Entities
 
 * **Hypothetical Fact (HF)**
-  An inferred, context-grounded proposition derived from observations or media.
+  An inferred, context-grounded proposition derived from observations or media.  
   *Example:* “**1776-07-04**: The **Declaration of Independence** was adopted in **Philadelphia**.”
 
 * **Instance**
-  A concrete occurrence of a Class *within a specific HF*. It identifies a **particular** concept/component *as observed inside that HF*.
+  A concrete occurrence of a Class *within a specific HF*. It identifies a **particular** concept/component *as observed inside that HF*.  
   *Example:* If “Declaration of Independence” appears in 5 HFs, there are **5 Instances** of that Class.
 
 * **Class**
-  The **unique** pattern that groups similar Instances across HFs. A Class is **one per concept**, and its Instances are the many.
+  The **unique** pattern that groups similar Instances across HFs. A Class is **one per concept**, and its Instances are the many.  
   *Example:* The Class **“Declaration of Independence”** is unique, even if it has many Instances.
 
 * **Representation**
-  A human-facing artifact (text, video, visualization, etc.) that we **extract HFs from**.
+  A human-facing artifact (text, video, visualization, etc.) that we **extract HFs from**.  
   *Example:* A documentary synthesized from many HFs about the Declaration is a **Representation**.
 
 > **Uniformity Principle**
@@ -96,8 +73,8 @@ Since the totality of facts is **unknowable**, we work with **Hypothetical Facts
 
 KAG constructs a **knowledge space** where HFs and their constituent Instances are embedded. Classes are **projected** as the shared structures that tie Instances together.
 
-* Each HF anchors a **local configuration** of Instances (people, events, artifacts, times, places…).
-* Each Class summarizes **where** and **how** its Instances appear across HFs.
+* Each HF anchors a **local configuration** of Instances (people, events, artifacts, times, places…).  
+* Each Class summarizes **where** and **how** its Instances appear across HFs.  
 * Representations are **inputs** to extraction; we do not directly reason over them as truth—only via the HFs they yield.
 
 * **Class is unique; Instances are many.**
@@ -128,11 +105,11 @@ The knowledge space is given coordinates in $\mathbb{R}^D$. Axes are **broad abs
 ### 4) Examples
 
 * **Event HF:**
-  “**1776-07-04**: **Declaration of Independence** adopted in **Philadelphia**.”
+  “**1776-07-04**: **Declaration of Independence** adopted in **Philadelphia**.”  
   Includes Instances of Classes: *18th century*, *Declaration of Independence*, *Philadelphia*, *United States*.
 
 * **Relational HF:**
-  “One week before **XX**, **A** and **B** conversed at **C**.”
+  “One week before **XX**, **A** and **B** conversed at **C**.”  
   Includes Instances of Classes: *A*, *B*, *C (place)*, *time offset*, *XX (reference event)*.
 
 * **Representation:**
@@ -153,15 +130,13 @@ These properties feed downstream metrics (e.g., centroids, enclosing volumes, po
 
 ## The KAG Universe: Coordinate System
 
-All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).
+All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).  
 Each **HF** is located within this coordinate system according to the structure of Classes and Instances that define it.
 
 ### Coordinate Principle
 
-In the **ideal state**—where all axes are fully defined and every dimension is sufficiently decomposed—
-the coordinate of each **HF** is **strictly unique**.
-However, in **practical implementations**, constraints such as axis granularity, projection precision, or dimensional reduction may cause
-**continuously adjacent HFs** to be placed at the **same coordinate**.
+In the **ideal state**—where all axes are fully defined and every dimension is sufficiently decomposed — the coordinate of each **HF** is **strictly unique**.  
+However, in **practical implementations**, constraints such as axis granularity, projection precision, or dimensional reduction may cause **continuously adjacent HFs** to be placed at the **same coordinate**.  
 This overlap represents a limit of the coordinate resolution, not a logical contradiction: such HFs can be treated as occupying a **shared micro-region** in the KAG Universe.
 
 > **Principle Summary:**
@@ -188,8 +163,7 @@ Good axes:
 
 ## Universe Construction
 
-> The **Universe** in KAG corresponds to what a traditional RAG system would call an **index** —
-> the structured space in which knowledge is stored and retrieved.
+> The **Universe** in KAG corresponds to what a traditional RAG system would call an **index** — the structured space in which knowledge is stored and retrieved.
 > However, rather than a static vector index, KAG uses the term *Universe* to emphasize its **geometric and dynamic nature**:
 > a manifold of Hypothetical Facts, Classes, and Instances, whose relationships are explicitly modeled as geometry.
 
@@ -220,87 +194,83 @@ For any Class (A), using the coordinates of its Instances:
   
 ### Contextual Relationships
 
-* If an HF lies inside a Class’s influence region, that Class is contextual for the HF.
+* If an HF lies inside a Class’s influence region, that Class is contextual for the HF.  
 * If Class A lies within Class B’s influence region, A is subordinate to B (B provides the contextual frame).
 
 ---
 
 ## RIHU Retrieval in the KAG Universe
 
-RIHU treats retrieval as **navigation through the KAG Universe**.
-Instead of asking *“Which texts match?”*, we ask:
-**“Where should I stand in the geometry — and what becomes near, dense, or enclosing when I do?”**
+RIHU treats retrieval as **navigation through the KAG Universe**.  
+Instead of asking *“Which texts match?”*, we ask: **“Where should I stand in the geometry — and what becomes near, dense, or enclosing when I do?”**
 
 RIHU supports two complementary retrieval modes:
 
-* **Objective Retrieval (world-centric)** — search from the global structure of meaning.
+* **Objective Retrieval (world-centric)** — search from the global structure of meaning.  
 * **Subjective Retrieval (observer-centric)** — search from a specific vantage within the space.
 
 ---
 
-### 1) Objective Retrieval — *Searching from the God’s-eye view*
+### 1) Objective Retrieval
 
-**Intent:** Discover what the world “knows” about a topic, by locating regions where relevant Classes converge.
+**Intent:**
+Discover what the world “knows” about a topic, by locating regions where relevant Classes or HFs converge.
 
 **Conceptual flow:**
 
-1. **Define the conceptual nucleus** — choose key Classes (e.g., *Declaration of Independence*, *United States*).
-2. **Compute the centroid** — find their geometric center in the Universe.
-3. **Survey the neighborhood** — identify HFs near that centroid that share overlapping Class memberships.
-4. **Interpret density** — dense regions imply high influence or conceptual richness.
-
-**Philosophical intent:**
-
-* *The world before the observer* — reveal the structure of meaning independent of perspective.
-* *Geometry before language* — relationships emerge from position, not word overlap.
-* *Integrative design* — RIHU can combine geometric reasoning with vector-based similarity for hybrid RAG pipelines.
+1. **Determine the reference coordinates** — either  
+   (a) identify the position (or centroid) of the target HF or Class by reference search (optionally using text-based vector retrieval within HFs), or  
+   (b) estimate the position of the target information within the Universe using the same placement method applied to HFs.  
+2. **Define the conceptual nucleus** — select key Classes or conceptual anchors (e.g., *Declaration of Independence*, *United States*).  
+3. **Compute the centroid** — calculate the geometric center of these reference coordinates in the Universe.  
+4. **Survey the neighborhood** — identify nearby HFs or regions with overlapping Class memberships.  
+5. **Interpret density** — dense regions imply high influence or conceptual richness.
 
 ---
 
-### 2) Subjective Retrieval — *See through a pair of eyes*
+### 2) Subjective Retrieval
 
 **Intent:** Explore the world **from within** — from the viewpoint of an observer in the KAG Universe.
 
 **Conceptual flow:**
 
-1. **Pick a vantage point** — an observer (person, role, or moment).
-2. **Look around** — retrieve nearby HFs within a certain radius.
-3. **Identify context** — Classes enclosing the observer define the ambient context.
+1. **Pick a vantage point** — select a coordinate in the observer space, using existing Classes (person, role, moment) as reference points.  
+2. **Look around** — retrieve nearby HFs within a certain radius.  
+3. **Identify context** — Classes enclosing the observer define the ambient context.  
 4. **Scan the periphery** — what lies just beyond reach, signaling emerging relevance?
 
 **Design principles:**
 
-* **Context-first retrieval** — the “room” around the observer matters.
-* **Periphery awareness** — sense the nearby unknown.
+* **Context-first retrieval** — the “room” around the observer matters.  
+* **Periphery awareness** — sense the nearby unknown.  
 * **Bias transparency** — by declaring a vantage, bias becomes explicit.
 
 ---
 
-### 3) Detective Search — *Inference from the unseen*　(Prototype — Not Yet Implemented)
+### 3) Detective Search (Prototype — Not Yet Implemented)
 
 **Intent:**
-Infer **unobserved or hypothetical facts** by reasoning through the geometric relationships of known Classes —
-searching not for what *is*, but for what *must be*, given the structure of the Universe.
+Infer **unobserved or hypothetical facts** by reasoning through the geometric relationships of known Classes — searching not for what *is*, but for what *must be*, given the structure of the Universe.
 
 **Conceptual flow:**
 
-1. **Identify involved Classes** — determine which Classes are likely to participate in the unseen fact (e.g., *detective*, *crime scene*, *witness*).
-2. **Estimate the geometric barycenter** — compute the centroid of these Classes’ coordinates to hypothesize the most probable region for the missing Hypothetical Fact (HF).
-3. **Survey nearby evidence** — collect related Classes, adjacent HFs, and contextual information within that region.
+1. **Identify involved Classes** — determine which Classes are likely to participate in the unseen fact (e.g., *detective*, *crime scene*, *witness*).  
+2. **Estimate the geometric barycenter** — compute the centroid of these Classes’ coordinates to hypothesize the most probable region for the missing Hypothetical Fact (HF).  
+3. **Survey nearby evidence** — collect related Classes, adjacent HFs, and contextual information within that region.  
 4. **Invoke generative reasoning** — provide these collected elements (Classes, HFs, Context) to a generative model to infer the *most plausible unobserved fact*.
 
 **Philosophical intent:**
 
-* *Inference as retrieval* — the act of “searching” extends to reasoning about the unseen.
-* *Geometry as hypothesis space* — positional relationships suggest what *ought to exist*, even if not yet observed.
+* *Inference as retrieval* — the act of “searching” extends to reasoning about the unseen.  
+* *Geometry as hypothesis space* — positional relationships suggest what *ought to exist*, even if not yet observed.  
 * *Generative triangulation* — large language models act as geometric interpreters, connecting partial evidence into coherent hypothetical facts.
 
 ---
 
 ### Choosing a Mode
 
-* Use **Objective RIHU** for top-down, phenomenon-centric exploration.
-* Use **Subjective RIHU** for bottom-up, observer-centric interpretation.
+* Use **Objective RIHU** for top-down, phenomenon-centric exploration.  
+* Use **Subjective RIHU** for bottom-up, observer-centric interpretation.  
 * Mix both: locate the global neighborhood first, then experience it from within.
 
 ---
@@ -315,8 +285,7 @@ RIHU reframes retrieval for **explainable semantic navigation**:
 | **Density**        | Salience (many Instances = influential) |
 | **Containment**    | Context (inside = framing meaning)      |
 
-Retrieval becomes **legible**:
-you can literally *point to the region* in the KAG Universe where meaning was found.
+Retrieval becomes **legible**: you can literally *point to the region* in the KAG Universe where meaning was found.
 
 ---
 
@@ -330,8 +299,8 @@ you can literally *point to the region* in the KAG Universe where meaning was fo
 
 ### Setup
 
-1. Clone or download this repository, and make sure the following three files are in the **same folder**.
-Note that `sample.py` and `holmes.py` are located in the **sample** directory.:
+1. Clone or download this repository, and make sure the following three files are in the **same folder**.  
+Note that `sample.py` and `holmes.txt` are located in the **sample** directory.:
 
 ```
 sample.py
@@ -785,5 +754,3 @@ Future directions include:
 * Integration with open-source RAG systems
 * Empirical evaluation on public datasets
 * Visualization and interactive exploration tools
-
-> “Distance is relationship; density is influence.” — *KAG Universe*
