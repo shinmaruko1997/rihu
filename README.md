@@ -170,7 +170,7 @@ The following section outlines how these geometric ideas are implemented concret
 
 ---
 
-## Geometry & Metrics (KAG Core)
+## Geometry & Metrics
 
 For any Class (A), using the coordinates of its Instances:
 
@@ -199,8 +199,6 @@ RIHU supports two complementary retrieval modes:
 * **Objective Retrieval (world-centric)** — search from the global structure of meaning.  
 * **Subjective Retrieval (observer-centric)** — search from a specific vantage within the space.
 
----
-
 ### 1) Objective Retrieval
 
 **Intent:**
@@ -215,8 +213,6 @@ Discover what the world “knows” about a topic, by locating regions where rel
 3. **Compute the centroid** — calculate the geometric center of these reference coordinates in the Universe.  
 4. **Survey the neighborhood** — identify nearby HFs or regions with overlapping Class memberships.  
 5. **Interpret density** — dense regions imply high influence or conceptual richness.
-
----
 
 ### 2) Subjective Retrieval
 
@@ -234,8 +230,6 @@ Discover what the world “knows” about a topic, by locating regions where rel
 * **Context-first retrieval** — the “room” around the observer matters.  
 * **Periphery awareness** — sense the nearby unknown.  
 * **Bias transparency** — by declaring a vantage, bias becomes explicit.
-
----
 
 ### 3) Detective Search (Prototype — Not Yet Implemented)
 
