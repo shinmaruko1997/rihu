@@ -133,16 +133,6 @@ These properties feed downstream metrics (e.g., centroids, enclosing volumes, po
 All knowledge is embedded into $\mathbb{R}^D$, where axes represent broad, continuous dimensions (e.g., time / space / semantics).  
 Each **HF** is located within this coordinate system according to the structure of Classes and Instances that define it.
 
-### Coordinate Principle
-
-In the **ideal state**—where all axes are fully defined and every dimension is sufficiently decomposed — the coordinate of each **HF** is **strictly unique**.  
-However, in **practical implementations**, constraints such as axis granularity, projection precision, or dimensional reduction may cause **continuously adjacent HFs** to be placed at the **same coordinate**.  
-This overlap represents a limit of the coordinate resolution, not a logical contradiction: such HFs can be treated as occupying a **shared micro-region** in the KAG Universe.
-
-> **Principle Summary:**
-> The KAG coordinate system aspires to one-to-one mapping between meaning and position,
-> yet accepts controlled degeneracy as a natural outcome of finite and approximated geometry.
-
 ### Good axes: choosing and defining the frame
 
 Good axes are those that preserve interpretability and continuity, providing stable reference for HF positioning.
