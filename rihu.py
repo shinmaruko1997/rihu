@@ -8,8 +8,14 @@ import unicodedata
 import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Tuple
-
+import logging
 import numpy as np
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # ------------------------------
 # Fixed bounds for LLM-chosen axes
@@ -25,13 +31,7 @@ try:
 except Exception:  # pragma: no cover - runtime import guard
     OpenAI = None  # type: ignore
     _HAS_OPENAI_V1 = False
-
-try:
-    # Legacy SDK (<=0.28)
     import openai as _openai_legacy  # type: ignore
-    _HAS_OPENAI_LEGACY = True
-except Exception:  # pragma: no cover - runtime import guard
-    _HAS_OPENAI_LEGACY = False
 
 
 # =============================================================================
@@ -47,6 +47,7 @@ class HF:
     class_names: List[str] = field(default_factory=list)  # names of Classes participating
     coord: Optional[List[float]] = None  # filled after placement
     source_ids: List[str] = field(default_factory=list)  # chunk ids or URIs
+    source_names: List[str] = field(default_factory=list) # optional human-readable source names (duplicates allowed; not used in geometry)
 
 
 @dataclass
@@ -71,9 +72,18 @@ class ClassNode:
 
 
 @dataclass
+class AxisBin:
+    label: str
+    description: str
+    prototypes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class AxisSpec:
     name: str
     description: str
+    # NEW: interpretable discrete patterns along this axis
+    bins: List[AxisBin] = field(default_factory=list)
 
 
 @dataclass
@@ -99,19 +109,28 @@ class KAGUniverse:
 
     @staticmethod
     def from_json(data: Dict[str, Any]) -> "KAGUniverse":
+        # Reconstruct AxisSpec with AxisBin
+        def _axis_from_dict(axd: Dict[str, Any]) -> AxisSpec:
+            bins = [AxisBin(**b) for b in axd.get("bins", [])]
+            return AxisSpec(name=axd["name"], description=axd.get("description", ""), bins=bins)
+
+        # HF with source_names
         cls_map = {k: ClassNode(**v) for k, v in data["classes"].items()}
         hf_map = {k: HF(**v) for k, v in data["hfs"].items()}
         inst_map = {k: Instance(**v) for k, v in data["instances"].items()}
+        meta_in = data.get("meta", {}) or {}
+        axes_in = meta_in.get("axes", []) or []
         meta = KAGMeta(
-            axes=[AxisSpec(**ax) for ax in data["meta"]["axes"]],
-            dims=data["meta"]["dims"],
-            embedding_model=data["meta"]["embedding_model"],
-            llm_model=data["meta"]["llm_model"],
-            notes=data["meta"].get("notes", {}),
+            axes=[_axis_from_dict(ax) for ax in axes_in if isinstance(ax, dict)],
+            dims=int(meta_in.get("dims", 0) or 0),
+            embedding_model=str(meta_in.get("embedding_model", "") or ""),
+            llm_model=str(meta_in.get("llm_model", "") or ""),
+            notes=meta_in.get("notes", {}) or {},
         )
         return KAGUniverse(classes=cls_map, hfs=hf_map, instances=inst_map, meta=meta)
 
     def to_json(self) -> Dict[str, Any]:
+        # dataclasses are used everywhere, so asdict will include new fields automatically
         return {
             "classes": {k: asdict(v) for k, v in self.classes.items()},
             "hfs": {k: asdict(v) for k, v in self.hfs.items()},
@@ -142,7 +161,6 @@ class KAGUniverse:
         iterations: int = 6,
         alpha: float = 0.35,
         epsilon: float = 1e-4,
-        use_llm_hf_extraction: bool = True,
         use_llm_class_consolidation: bool = True,
         anchors: Optional[List[str]] = None,
         system_prompt: Optional[str] = None,
@@ -176,18 +194,74 @@ class KAGUniverse:
         # Decide the working dimensionality
         selected_dims = int(dims) if dims is not None else int(axes_count)
 
+        # --- NEW: propose discrete bins for interpretability (1 LLM call per axis) ---
+        axis_bins_map: Dict[str, List[AxisBin]] = {}
+        sample_hfs_for_bins = [c.get("text", "") for c in chunks[: min(50, len(chunks))]]
+        for ax in axes:
+            bins = _propose_axis_bins(
+                client=openai_client,
+                llm_model=llm_model,
+                axis=ax,
+                sample_hf_texts=sample_hfs_for_bins,
+                system_prompt=system_prompt,
+            )
+            ax.bins = bins
+            axis_bins_map[ax.name] = bins
+
         # 2) HF & Class extraction (LLM-based, fallback heuristic)
         hfs, class_map, instances = _extract_hfs_and_classes(
             client=openai_client,
             llm_model=llm_model,
             chunks=chunks,
-            use_llm=use_llm_hf_extraction,
             system_prompt=system_prompt,
         )
+
+        if not class_map:
+            raise RuntimeError(
+                "HF/Class extraction via LLM returned zero classes. "
+                "Likely model/output/sanitization issue. Check logs."
+            )
 
         # 3) Mechanical class merge (returns merged classes + mapping)
         class_map, mech_mapping = _mechanical_class_merge(class_map)
         _apply_class_mapping_to_refs(mapping=mech_mapping, hfs=hfs, instances=instances, classes=class_map)
+
+        # --- NEW: Embedding-based blocking & partial auto-merge before LLM consolidation ---
+        # Build signatures and embed once
+        embedder_for_block = _EmbeddingHelper(openai_client, embedding_model)
+        sig_map = _build_class_signatures(class_map, instances, hfs, k_examples=3)
+        _embed_class_signatures(embedder_for_block, sig_map)
+
+        # Candidate pairs
+        sure_pairs, maybe_pairs = _candidate_pairs_by_blocking(sig_map, top_m=15, hi_threshold=0.92, lo_threshold=0.80)
+
+        # Apply sure merges immediately
+        alias_blocking_mapping: Dict[str, str] = _merge_class_pairs_inplace(
+            classes=class_map,
+            hfs=hfs,
+            instances=instances,
+            pairs_to_merge=sure_pairs
+        )
+
+        # Rebuild signatures after merges (optional)
+        if sure_pairs:
+            sig_map = _build_class_signatures(class_map, instances, hfs, k_examples=3)
+            _embed_class_signatures(embedder_for_block, sig_map)
+
+        # For ambiguous pairs, ask LLM in small batches
+        if use_llm_class_consolidation and maybe_pairs:
+            decisions = _llm_disambiguate_pairs(
+                client=openai_client,
+                llm_model=llm_model,
+                pairs=maybe_pairs,
+                sigs=sig_map,
+                system_prompt=system_prompt,
+            )
+            to_merge = [k for k, v in decisions.items() if v == "merge"]
+            if to_merge:
+                alias_blocking_mapping.update(
+                    _merge_class_pairs_inplace(classes=class_map, hfs=hfs, instances=instances, pairs_to_merge=to_merge)
+                )
 
         # 4) Optional LLM consolidation over the full Class/HF list
         llm_mapping: Dict[str, str] = {}
@@ -208,21 +282,94 @@ class KAGUniverse:
         hf_ids_sorted = sorted(hfs.keys())
         hf_texts = [hfs[h].text for h in hf_ids_sorted]
 
-        class_emb = embedder.embed_texts(class_texts)
-        hf_emb = embedder.embed_texts(hf_texts)
+        class_emb = embedder.embed_texts(class_texts)  # (Nc, Dc) or (0,0)
+        hf_emb = embedder.embed_texts(hf_texts)        # (Nh, Dh) or (0,0)
 
-        all_emb = np.vstack([class_emb, hf_emb])
+        # --- NEW: pick non-empty embedding dimension & guard for empty sets
+        if class_emb.size == 0 and hf_emb.size == 0:
+            raise RuntimeError("No embeddings could be computed for classes or HFs.")
+
+        # unify embedding dim
+        emb_dim = (class_emb.shape[1] if class_emb.size else hf_emb.shape[1])
+
+        if class_emb.size == 0:
+            all_emb = hf_emb
+        elif hf_emb.size == 0:
+            all_emb = class_emb
+        else:
+            all_emb = np.vstack([class_emb, hf_emb])
+
+        n_samples = all_emb.shape[0]
+
+        # clamp dims to valid range
+        selected_dims = int(dims) if dims is not None else int(axes_count)
+        selected_dims = max(1, min(selected_dims, emb_dim, n_samples))
+
         proj = _svd_project(all_emb, dims=selected_dims)
-        class_coords = proj[: len(class_emb), :]
-        hf_coords = proj[len(class_emb) :, :]
 
-        for name, coord in zip(class_names_sorted, class_coords.tolist()):
-            node = class_map[name]
-            node.coord = coord
-            if anchors and (name in anchors):
-                node.is_anchor = True
-        for hf_id, coord in zip(hf_ids_sorted, hf_coords.tolist()):
-            hfs[hf_id].coord = coord
+        # slice back safely
+        if class_emb.size == 0:
+            class_coords = np.zeros((0, selected_dims), dtype=float)
+            hf_coords = proj
+        elif hf_emb.size == 0:
+            class_coords = proj
+            hf_coords = np.zeros((0, selected_dims), dtype=float)
+        else:
+            class_coords = proj[: len(class_emb), :]
+            hf_coords = proj[len(class_emb) :, :]
+
+        def _is_finite(vec): 
+            v = np.asarray(vec, dtype=float)
+            return np.all(np.isfinite(v))
+
+        for i, name in enumerate(class_names_sorted):
+            if class_coords.shape[0] > i and _is_finite(class_coords[i]):
+                class_map[name].coord = class_coords[i].tolist()
+
+        for i, hid in enumerate(hf_ids_sorted):
+            if hf_coords.shape[0] > i and _is_finite(hf_coords[i]):
+                hfs[hid].coord = hf_coords[i].tolist()
+
+        # 5.25) NEW: bin scoring for interpretability (embedding-only; cheap)
+        axis_bin_membership: Dict[str, Dict[str, Any]] = {"HF": {}, "Class": {}}
+
+        # HFs
+        if axes:
+            for ax in axes:
+                if not ax.bins:
+                    continue
+                S, labels = _score_bins_with_embeddings_for_texts(embedder, hf_texts, ax.bins)
+                for i, hid in enumerate(hf_ids_sorted):
+                    row = S[i, :]
+                    top = int(np.argmax(row)) if row.size else -1
+                    axis_bin_membership["HF"].setdefault(hid, {})
+                    axis_bin_membership["HF"][hid][ax.name] = {
+                        "top_label": (labels[top] if top >= 0 else None),
+                        "scores": {labels[j]: float(row[j]) for j in range(len(labels))}
+                    }
+
+        # Classes (use "name :: examples" if available)
+        class_sig_texts = []
+        for n in class_names_sorted:
+            sig = sig_map.get(n)
+            if sig and sig.rep_hf_texts:
+                class_sig_texts.append(f"{n} :: " + " | ".join(sig.rep_hf_texts[:3]))
+            else:
+                class_sig_texts.append(n)
+
+        if axes and class_sig_texts:
+            for ax in axes:
+                if not ax.bins:
+                    continue
+                S, labels = _score_bins_with_embeddings_for_texts(embedder, class_sig_texts, ax.bins)
+                for i, cname in enumerate(class_names_sorted):
+                    row = S[i, :]
+                    top = int(np.argmax(row)) if row.size else -1
+                    axis_bin_membership["Class"].setdefault(cname, {})
+                    axis_bin_membership["Class"][cname][ax.name] = {
+                        "top_label": (labels[top] if top >= 0 else None),
+                        "scores": {labels[j]: float(row[j]) for j in range(len(labels))}
+                    }
 
         # 5.5) Optional: LLM-proposed anchor targets + one-shot affine alignment (Improvement #2)
         if use_llm_anchor_coords:
@@ -345,7 +492,9 @@ class KAGUniverse:
             "alpha": alpha,
             "mechanical_mapping": mech_mapping,
             "llm_mapping": llm_mapping,
+            "alias_blocking_mapping": alias_blocking_mapping,  # NEW: merges decided by blocking/LLM-pair
             "axes_count": axes_count,
+            "axis_bin_membership": axis_bin_membership,        # NEW: interpretability info
         }
         meta = KAGMeta(
             axes=axes,
@@ -381,7 +530,11 @@ class KAGUniverse:
 
         # Build new from combined data using previous axes as anchors (names only)
         all_chunks = _chunks_from_universe(self) + new_chunks
-        anchors = [ax.name for ax in self.meta.axes]
+        # old:
+        # anchors = [ax.name for ax in self.meta.axes]
+        # New:
+        anchors = [n for n, nd in self.classes.items() if nd.is_anchor] or None
+
         new_u = KAGUniverse.build(
             chunks=all_chunks,
             openai_client=openai_client,
@@ -439,12 +592,13 @@ class KAGUniverse:
 
         # Optional hybrid: cosine similarity between HF text and seed query text
         sims: List[float] = [0.0] * len(candidates)
-        if openai_client is not None and embedding_model:
+        if openai_client is not None and embedding_model and candidates:
             embedder = _EmbeddingHelper(openai_client, embedding_model)
-            query_text = ", ".join(class_names)  # simple seed query text
-            qv = embedder.embed_texts([query_text])[0]
+            q = embedder.embed_texts([", ".join(class_names)])
             hf_vecs = embedder.embed_texts([hf.text for hf in candidates])
-            sims = _cosine_sim_matrix(hf_vecs, qv.reshape(1, -1)).ravel().tolist()
+            if q.size and hf_vecs.size:
+                qv = q[0].reshape(1, -1)
+                sims = _cosine_sim_matrix(hf_vecs, qv).ravel().tolist()
 
         # Normalize features to [0,1] and compute convex combination
         d_scores = _invert_and_normalize(dists)          # smaller distance => higher score
@@ -470,6 +624,7 @@ class KAGUniverse:
                 "text": hf.text,
                 "classes": hf.class_names,
                 "sources": hf.source_ids,
+                "chunk_names": getattr(hf, "source_names", []),  # NEW
             })
         return {
             "mode": "objective",
@@ -501,12 +656,14 @@ class KAGUniverse:
         # Optional hybrid similarity to prioritize closer-about texts
         sims: Dict[str, float] = {}
         if openai_client is not None and embedding_model:
-            embedder = _EmbeddingHelper(openai_client, embedding_model)
-            qv = embedder.embed_texts([vantage])[0]
             hf_list = [hf for hf in self.hfs.values() if hf.coord is not None]
-            hf_vecs = embedder.embed_texts([hf.text for hf in hf_list])
-            sim_vals = _cosine_sim_matrix(hf_vecs, qv.reshape(1, -1)).ravel().tolist()
-            sims = {hf_list[i].id: sim_vals[i] for i in range(len(hf_list))}
+            if hf_list:
+                embedder = _EmbeddingHelper(openai_client, embedding_model)
+                q = embedder.embed_texts([vantage])
+                hf_vecs = embedder.embed_texts([hf.text for hf in hf_list])
+                if q.size and hf_vecs.size:
+                    sim_vals = _cosine_sim_matrix(hf_vecs, q[0].reshape(1, -1)).ravel().tolist()
+                    sims = {hf_list[i].id: sim_vals[i] for i in range(len(hf_list))}
 
         inside_scored = []
         periph_scored = []
@@ -532,6 +689,7 @@ class KAGUniverse:
             "text": hf.text,
             "classes": hf.class_names,
             "sources": hf.source_ids,
+            "chunk_names": getattr(hf, "source_names", []),  # NEW
         } for (s, d, hf) in inside_scored[:k]]
 
         periphery_neighbors = [{
@@ -541,6 +699,7 @@ class KAGUniverse:
             "text": hf.text,
             "classes": hf.class_names,
             "sources": hf.source_ids,
+            "chunk_names": getattr(hf, "source_names", []),  # NEW
         } for (s, d, hf) in periph_scored[:k]]
 
         # Context classes: containment of vantage within other classes
@@ -603,29 +762,31 @@ class KAGUniverse:
 
 
 # =============================================================================
-# Helpers — construction
+# Helpers - construction
 # =============================================================================
 
 class _EmbeddingHelper:
     def __init__(self, client: Any, model: str):
         self.client = client
         self.model = model
+        self._last_dim: Optional[int] = None  # initialize last known embedding dim
 
     def embed_texts(self, texts: List[str]) -> np.ndarray:
+        # Safe empty input: return (0, 0) until we know the dim
         if not texts:
-            return np.zeros((0, 0), dtype=float)
+            d = self._last_dim if self._last_dim is not None else 0
+            return np.zeros((0, d), dtype=float)
+
         if _HAS_OPENAI_V1 and isinstance(self.client, OpenAI):
             res = self.client.embeddings.create(model=self.model, input=texts)
             vecs = [d.embedding for d in res.data]
-            return np.array(vecs, dtype=float)
-        elif _HAS_OPENAI_LEGACY:
-            _openai_legacy.api_key = getattr(self.client, "api_key", os.getenv("OPENAI_API_KEY"))
-            res = _openai_legacy.Embedding.create(model=self.model, input=texts)
-            vecs = [d["embedding"] for d in res["data"]]
-            return np.array(vecs, dtype=float)
+            arr = np.array(vecs, dtype=float)
         else:  # pragma: no cover
             raise RuntimeError("OpenAI client not available. Install/openai and pass a client instance.")
 
+        if arr.ndim == 2 and arr.shape[1] > 0:
+            self._last_dim = arr.shape[1]
+        return arr
 
 def _propose_axes_dynamic_k(
     *, client: Any, llm_model: str, sample_texts: List[str],
@@ -689,61 +850,108 @@ def _propose_axes_dynamic_k(
 
 
 def _extract_hfs_and_classes(
-    *, client: Any, llm_model: str, chunks: List[Dict[str, Any]], use_llm: bool, system_prompt: Optional[str]
+    *, client: Any, llm_model: str, chunks: List[Dict[str, Any]], system_prompt: Optional[str]
 ) -> Tuple[Dict[str, HF], Dict[str, ClassNode], Dict[str, Instance]]:
+
+    def _heuristic_classes_from_text(t: str) -> List[str]:
+        dates = re.findall(r"\b\d{4}[-/]\d{2}[-/]\d{2}\b", t)
+        years = re.findall(r"\b(1[6-9]\d{2}|20\d{2}|21\d{2})\b", t)
+        nums  = re.findall(r"\b\d+(?:\.\d+)?\b", t)
+        caps  = re.findall(r"\b[A-Z][a-zA-Z0-9_\-]{2,}\b", t)
+        cands: List[str] = []
+        cands += list(dict.fromkeys(dates))
+        cands += list(dict.fromkeys(years))
+        # Completion (up to 5 items)
+        for pool in (caps, nums):
+            if len(cands) >= 5: break
+            for w in pool:
+                if w not in cands:
+                    cands.append(w)
+                if len(cands) >= 5: break
+        return cands[:5]
+
     hfs: Dict[str, HF] = {}
     classes: Dict[str, ClassNode] = {}
     instances: Dict[str, Instance] = {}
 
-    if use_llm:
-        batch_size = 12
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i : i + batch_size]
-            payload = [
-                {"id": c.get("id", str(i + j)), "text": c.get("text", ""), "meta": {k: v for k, v in c.items() if k not in ("id", "text")}}
-                for j, c in enumerate(batch)
-            ]
-            prompt = (
-                "You are a Knowledge-as-Geometry (KAG) analyst. "
-                "Your goal is to decompose text into minimal, concrete knowledge atoms called Hypothetical Facts (HFs). "
-                "Each HF expresses a specific relation, event, or property that can be geometrically represented as a point in latent space.\n\n"
-                "For each HF, identify the involved Classes — tangible, nameable entities that could serve as coordinate anchors. "
-                "These should be specific and referential (people, organizations, works, places, dates, items, measurable values).\n\n"
-                "Do NOT list general or abstract categories such as 'people', 'characters', 'concept', 'policy', or 'phenomenon'. "
-                "If a term refers to an abstract dimension shared by many HFs (e.g., time, location, emotional tone, importance), "
-                "it should NOT be a Class — it belongs to the latent axes of the universe.\n\n"
-                "Each HF must have:\n"
-                "- id: unique short id\n"
-                "- text: short declarative summary (<= 2 sentences)\n"
-                "- weight: float in [0,1] indicating importance or confidence\n"
-                "- class_names: list of Class strings (concrete entities only)\n"
-                "- source_id: the id of the input chunk\n\n"
-                "Return strictly JSON: {\"hfs\": [ ... ]}."
+    # map from chunk id to optional name
+    id_to_name: Dict[str, str] = {}
+    for c in chunks:
+        cid = str(c.get("id", "") or "")
+        cname = c.get("name", None)
+        if cid and isinstance(cname, str) and cname.strip():
+            id_to_name[cid] = cname.strip()
+
+    batch_size = 12
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i : i + batch_size]
+        payload = [
+            {
+                "id": c.get("id", str(i + j)),
+                "text": c.get("text", ""),
+                "meta": {k: v for k, v in c.items() if k not in ("id", "text")}
+            }
+            for j, c in enumerate(batch)
+        ]
+        prompt = (
+            "You are a Knowledge-as-Geometry (KAG) analyst.\n"
+            "Decompose text into Hypothetical Facts (HFs). For EACH HF, output 1–5 concrete Classes.\n"
+            "CONCRETE means nameable, referential tokens that could appear INSIDE an HF:\n"
+            "- people, organizations, works/titled items, places (city/country), times (YYYY-MM-DD or year),\n"
+            "- specific events, quantities (counts/monetary amounts), identifiers.\n"
+            "DO NOT output vague categories like 'concept', 'policy', 'people', 'location', 'time'.\n"
+            "IMPORTANT:\n"
+            "- Time and Place MUST be extracted as Classes when they appear concretely (e.g., '1776-07-04', 'Philadelphia').\n"
+            "- If you initially find zero Classes, RECONSIDER and pick at least 1 plausible concrete Class.\n"
+            "- class_names must be strings as they appear in the text (normalized only minimally).\n\n"
+            "Each HF must have:\n"
+            "- id: short unique id\n"
+            "- text: <=2 sentence summary\n"
+            "- weight: float in [0,1]\n"
+            "- class_names: 1–5 concrete classes (strings)\n"
+            "- source_id: id of the input chunk\n\n"
+            "Return STRICT JSON: {\"hfs\": [ ... ]} (no markdown, no commentary)."
+        )
+        raw = _llm_json(
+            client=client,
+            llm_model=llm_model,
+            system_msg=system_prompt or "You are precise at information extraction.",
+            user_msg=prompt + "\n\nInput:" + json.dumps(payload, ensure_ascii=False),
+            fallback={"hfs": [
+            {
+                "id": c.get("id", str(i)),
+                "text": c.get("text", ""),
+                "weight": 1.0,
+                "class_names": _heuristic_classes_from_text(c.get("text","")),
+                "source_id": c.get("id", str(i))
+            } for c in batch
+            ]},
+        )
+        raw = _ensure_dict(raw, {"hfs": []})
+
+        for rec in raw.get("hfs", []):
+            hf_id = f"hf_{rec.get('id', str(uuid.uuid4()))}"
+            text = rec.get("text", "").strip()
+            weight = float(rec.get("weight", 1.0) or 1.0)
+            class_names = [str(n).strip() for n in (rec.get("class_names", []) or []) if str(n).strip()]
+            if not class_names:
+                class_names = _heuristic_classes_from_text(text)
+            src = str(rec.get("source_id", "")).strip() or None
+            src_name = id_to_name.get(src) if src else None
+            hfs[hf_id] = HF(
+                id=hf_id,
+                text=text,
+                weight=weight,
+                class_names=class_names,
+                source_ids=[src] if src else [],
+                source_names=[src_name] if src_name else []
             )
-            raw = _llm_json(
-                client=client,
-                llm_model=llm_model,
-                system_msg=system_prompt or "You are precise at information extraction.",
-                user_msg=prompt + "\n\nInput:" + json.dumps(payload, ensure_ascii=False),
-                fallback={"hfs": [{"id": c.get("id", str(i)), "text": c.get("text", ""), "weight": 1.0, "class_names": [], "source_id": c.get("id", str(i))} for c in batch]},
-            )
-            for rec in raw.get("hfs", []):
-                hf_id = f"hf_{rec.get('id', str(uuid.uuid4()))}"
-                text = rec.get("text", "").strip()
-                weight = float(rec.get("weight", 1.0) or 1.0)
-                class_names = [str(n).strip() for n in (rec.get("class_names", []) or []) if str(n).strip()]
-                src = str(rec.get("source_id", "")) or None
-                hfs[hf_id] = HF(id=hf_id, text=text, weight=weight, class_names=class_names, source_ids=[src] if src else [])
-                for cn in class_names:
-                    if cn not in classes:
-                        classes[cn] = ClassNode(name=cn)
-                    inst_id = f"inst_{uuid.uuid4().hex[:10]}"
-                    instances[inst_id] = Instance(id=inst_id, class_name=cn, hf_id=hf_id)
-                    classes[cn].instances.append(inst_id)
-    else:
-        for c in chunks:
-            hf_id = f"hf_{c.get('id', uuid.uuid4().hex[:8])}"
-            hfs[hf_id] = HF(id=hf_id, text=c.get("text", ""), weight=1.0, class_names=[], source_ids=[c.get("id", "")])
+            for cn in class_names:
+                if cn not in classes:
+                    classes[cn] = ClassNode(name=cn)
+                inst_id = f"inst_{uuid.uuid4().hex[:10]}"
+                instances[inst_id] = Instance(id=inst_id, class_name=cn, hf_id=hf_id)
+                classes[cn].instances.append(inst_id)
 
     return hfs, classes, instances
 
@@ -834,6 +1042,7 @@ def _llm_class_consolidation(
         user_msg=prompt + "\n\nInput:" + json.dumps(payload, ensure_ascii=False),
         fallback={"mapping": {}},
     )
+    raw = _ensure_dict(raw, {"mapping": {}})
     mapping: Dict[str, str] = raw.get("mapping", {}) or {}
     canonical: Dict[str, ClassNode] = {}
     for old, node in classes.items():
@@ -850,16 +1059,240 @@ def _llm_class_consolidation(
 
 
 # =============================================================================
-# Helpers — math & projection
+# Helpers - aliasing via embeddings + LLM (NEW)
+# =============================================================================
+
+@dataclass
+class ClassSignature:
+    name: str
+    rep_hf_texts: List[str] = field(default_factory=list)  # up to K examples
+    vec: Optional[np.ndarray] = None
+
+
+def _build_class_signatures(
+    classes: Dict[str, ClassNode],
+    instances: Dict[str, Instance],
+    hfs: Dict[str, HF],
+    k_examples: int = 3,
+) -> Dict[str, ClassSignature]:
+    """Collect short contextual signatures for each class from its HFs."""
+    sigs: Dict[str, ClassSignature] = {}
+    for cname, node in classes.items():
+        texts: List[str] = []
+        for inst_id in node.instances:
+            inst = instances.get(inst_id)
+            if not inst:
+                continue
+            hf = hfs.get(inst.hf_id)
+            if hf and hf.text:
+                texts.append(hf.text)
+            if len(texts) >= k_examples:
+                break
+        sigs[cname] = ClassSignature(name=cname, rep_hf_texts=texts[:k_examples])
+    return sigs
+
+
+def _embed_class_signatures(embedder: _EmbeddingHelper, sigs: Dict[str, ClassSignature]) -> None:
+    if not sigs:
+        return
+    names = list(sigs.keys())
+    texts = []
+    for n in names:
+        s = sigs[n]
+        t = (f"{s.name} :: " + " | ".join(s.rep_hf_texts[:3])) if s.rep_hf_texts else s.name
+        texts.append(t)
+
+    M = embedder.embed_texts(texts)  # may be (0, 0)
+    if M.size == 0 or M.shape[0] != len(names):
+        # Fallback: clear vecs to avoid downstream vstack errors
+        for n in names:
+            sigs[n].vec = None
+        return
+
+    for i, n in enumerate(names):
+        sigs[n].vec = M[i]
+
+
+def _candidate_pairs_by_blocking(
+    sigs: Dict[str, ClassSignature],
+    top_m: int = 15,
+    hi_threshold: float = 0.92,
+    lo_threshold: float = 0.80,
+) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
+    """
+    Return (sure_merge_pairs, maybe_pairs) using simple top-m neighbors per class
+    based on cosine similarity. For larger N, replace with ANN as needed.
+    """
+    if not sigs:
+        return [], []
+
+    pairs = [(n, sigs[n].vec) for n in sigs.keys() if isinstance(sigs[n].vec, np.ndarray)]
+    if len(pairs) < 2:
+        return [], []
+    names, vecs = zip(*pairs)  # names: tuple[str], vecs: tuple[np.ndarray]
+    V = np.vstack(vecs)
+    # cosine similarity matrix (n x n)
+    A_norm = V / (np.linalg.norm(V, axis=1, keepdims=True) + 1e-12)
+    S = A_norm @ A_norm.T
+    np.fill_diagonal(S, -1.0)  # exclude self
+
+    sure: List[Tuple[str, str]] = []
+    maybe: List[Tuple[str, str]] = []
+
+    n = len(names)
+    for i in range(n):
+        row = S[i]
+        # indices of top_m neighbors by similarity
+        idx = np.argpartition(-row, min(top_m, n - 1))[: min(top_m, n - 1)]
+        for j in idx:
+            if j <= i:
+                continue  # avoid duplicates; only i<j
+            sim = float(row[j])
+            if sim >= hi_threshold:
+                sure.append((names[i], names[j]))
+            elif sim >= lo_threshold:
+                maybe.append((names[i], names[j]))
+    return sure, maybe
+
+
+def _llm_disambiguate_pairs(
+    *,
+    client: Any,
+    llm_model: str,
+    pairs: List[Tuple[str, str]],
+    sigs: Dict[str, ClassSignature],
+    system_prompt: Optional[str] = None,
+    batch_size: int = 40,
+) -> Dict[Tuple[str, str], str]:
+    """
+    Ask the LLM to decide for ambiguous pairs: "merge" or "separate".
+    Returns a dict { (a,b): "merge"|"separate" }.
+    """
+    out: Dict[Tuple[str, str], str] = {}
+    if not pairs:
+        return out
+
+    sys = system_prompt or "You are a taxonomy editor. Merge only if two names refer to the same concrete concept given the examples; otherwise separate."
+
+    for i in range(0, len(pairs), batch_size):
+        batch = pairs[i : i + batch_size]
+        payload = []
+        for (a, b) in batch:
+            sa = sigs[a]
+            sb = sigs[b]
+            payload.append({
+                "a": {"name": sa.name, "examples": sa.rep_hf_texts[:3]},
+                "b": {"name": sb.name, "examples": sb.rep_hf_texts[:3]},
+            })
+
+        user = (
+            "Decide for each pair whether they should be merged as the SAME concept or kept SEPARATE.\n"
+            "Rules:\n"
+            "- Merge only if meanings clearly match in context.\n"
+            "- If they are homonyms with different meanings, choose separate.\n"
+            "- Output strict JSON: {\"decisions\":[{\"a\":\"...\",\"b\":\"...\",\"action\":\"merge|separate\"}, ...]}.\n\n"
+            "Input:\n" + json.dumps(payload, ensure_ascii=False)
+        )
+
+        raw = _llm_json(
+            client=client,
+            llm_model=llm_model,
+            system_msg=sys,
+            user_msg=user,
+            fallback={"decisions": []},
+        )
+        raw = _ensure_dict(raw, {"decisions": []})
+        for d in raw.get("decisions", []):
+            a = str(d.get("a", "")).strip()
+            b = str(d.get("b", "")).strip()
+            act = str(d.get("action", "")).strip().lower()
+            if a in sigs and b in sigs and act in ("merge", "separate"):
+                key = (a, b) if a < b else (b, a)
+                out[key] = act
+    return out
+
+# --- Canonical name scoring (new) --------------------------------------------
+_GENERIC_NAMES = {
+    "item", "entity", "thing", "person", "people",
+    "organization", "org", "company", "concept", "policy",
+}
+
+def _canonical_name_score(name: str, node: ClassNode) -> float:
+    """Heuristic score for picking the canonical class name."""
+    # 1) frequency: number of instances (dominant)
+    freq = float(len(node.instances))
+
+    # 2) granularity: number of tokens (slightly prefer multi-word proper names)
+    tokens = re.findall(r"\w+", name)
+    tok_len = float(len(tokens))
+
+    # 3) length: characters (weak preference)
+    char_len = float(len(name))
+
+    # 4) penalties: very short single-token or generic words
+    penalty = 0.0
+    if tok_len == 1 and char_len <= 3:
+        penalty += 1.0
+    if name.strip().lower() in _GENERIC_NAMES:
+        penalty += 1.0
+
+    # weights: freq >> tokens > chars; penalties are strong
+    W_FREQ, W_TOK, W_CHAR, W_PEN = 10.0, 2.0, 0.5, 5.0
+
+    return W_FREQ * freq + W_TOK * tok_len + W_CHAR * char_len - W_PEN * penalty
+
+def _choose_canonical_name(a: str, b: str, classes: Dict[str, ClassNode]) -> str:
+    """Choose a canonical name between two class names using the score above."""
+    na = classes.get(a)
+    nb = classes.get(b)
+    if na is None or nb is None:
+        return a if nb is None else b if na is None else min(a, b)
+
+    sa = _canonical_name_score(a, na)
+    sb = _canonical_name_score(b, nb)
+
+    if abs(sa - sb) < 1e-9:
+        return min(a, b)
+    return a if sa > sb else b
+
+def _merge_class_pairs_inplace(
+    *,
+    classes: Dict[str, ClassNode],
+    hfs: Dict[str, HF],
+    instances: Dict[str, Instance],
+    pairs_to_merge: List[Tuple[str, str]],
+) -> Dict[str, str]:
+    """
+    Apply merges for the given unordered class name pairs.
+    Returns mapping old_name -> canonical_name using a simple but better heuristic.
+    """
+    mapping: Dict[str, str] = {}
+    for a, b in pairs_to_merge:
+        if a == b or a not in classes or b not in classes:
+            continue
+        canon = _choose_canonical_name(a, b, classes)
+        other = b if canon == a else a
+        mapping[other] = canon
+
+    _apply_class_mapping_to_refs(mapping=mapping, hfs=hfs, instances=instances, classes=classes)
+    return mapping
+
+
+# =============================================================================
+# Helpers - math & projection
 # =============================================================================
 
 def _svd_project(X: np.ndarray, dims: int) -> np.ndarray:
     X = np.asarray(X, dtype=float)
+    if X.size == 0:
+        raise ValueError("SVD projection received empty matrix.")
     Xc = X - X.mean(axis=0, keepdims=True)
     U, S, Vt = np.linalg.svd(Xc, full_matrices=False)
-    Z = U[:, :dims] * S[:dims]
+    dmax = min(max(int(dims), 1), len(S))
+    if dmax <= 0 or len(S) == 0:
+        raise ValueError("dims must be >=1 and <= rank of X")
+    Z = U[:, :dmax] * S[:dmax]
     return Z
-
 
 def _mean_pairwise_distance(coords: np.ndarray) -> float:
     n = len(coords)
@@ -891,7 +1324,12 @@ def _instances_of_class(instances: Dict[str, Instance], class_name: str) -> List
 def _chunks_from_universe(u: KAGUniverse) -> List[Dict[str, Any]]:
     out = []
     for hf in u.hfs.values():
-        out.append({"id": hf.id, "text": hf.text})
+        # preserve id/text; name is optional
+        name = hf.source_names[0] if getattr(hf, "source_names", None) else None
+        rec = {"id": hf.id, "text": hf.text}
+        if name:
+            rec["name"] = name
+        out.append(rec)
     return out
 
 
@@ -927,7 +1365,7 @@ def _inv_dist_score(d: float) -> float:
 
 
 # =============================================================================
-# Helpers — LLM anchor targets & alignment (Improvement #2)
+# Helpers - LLM anchor targets & alignment (Improvement #2)
 # =============================================================================
 
 def _propose_anchor_coords(
@@ -953,6 +1391,7 @@ def _propose_anchor_coords(
         user_msg=prompt + "\n\nInput:" + json.dumps(payload, ensure_ascii=False),
         fallback={"coords": {}},
     )
+    raw = _ensure_dict(raw, {"coords": {}})
     coords = raw.get("coords", {}) or {}
     out: Dict[str, List[float]] = {}
     for k, v in coords.items():
@@ -982,90 +1421,161 @@ def _affine_align(X_src: np.ndarray, Y_tgt: np.ndarray, l2: float = 1e-4) -> Tup
 
 
 # =============================================================================
-# Helpers — OpenAI LLM JSON calling
+# Helpers - Axis bins (NEW)
 # =============================================================================
 
-def _llm_json(*, client: Any, llm_model: str, system_msg: str, user_msg: str, fallback: Any) -> Any:
+def _propose_axis_bins(
+    *,
+    client: Any,
+    llm_model: str,
+    axis: AxisSpec,
+    sample_hf_texts: List[str],
+    system_prompt: Optional[str] = None,
+    min_bins: int = 3,
+    max_bins: int = 7,
+) -> List[AxisBin]:
+    """
+    Ask LLM to propose discrete patterns (bins) for an axis.
+    """
+    sys = system_prompt or "You design interpretable discrete patterns along a continuous axis."
+    user = (
+        "Given an axis name and description, and representative fact snippets, propose "
+        f"{min_bins} to {max_bins} discrete recurring patterns (bins) observed along this axis. "
+        "Each bin should have: label (1-3 words), one-sentence description, and 2-5 short prototype phrases.\n"
+        "Return strict JSON: {\"bins\":[{\"label\":\"...\",\"description\":\"...\",\"prototypes\":[\"...\"]}, ...]}.\n\n"
+        "Input:\n" + json.dumps({
+            "axis": {"name": axis.name, "description": axis.description},
+            "samples": sample_hf_texts[:50],
+            "min": min_bins, "max": max_bins,
+        }, ensure_ascii=False)
+    )
+    raw = _llm_json(
+        client=client,
+        llm_model=llm_model,
+        system_msg=sys,
+        user_msg=user,
+        fallback={"bins": []},
+    )
+    raw = _ensure_dict(raw, {"bins": []})
+    out: List[AxisBin] = []
+    for b in raw.get("bins", []):
+        label = str(b.get("label", "")).strip()
+        desc = str(b.get("description", "")).strip()
+        protos = [str(x).strip() for x in (b.get("prototypes", []) or []) if str(x).strip()]
+        if label:
+            out.append(AxisBin(label=label, description=desc, prototypes=protos[:5]))
+    return out
+
+
+def _score_bins_with_embeddings_for_texts(
+    embedder: _EmbeddingHelper,
+    texts: List[str],
+    bins: List[AxisBin],
+) -> Tuple[np.ndarray, List[str]]:
+    """
+    Compute cosine similarity between each text and each bin's prototype centroid.
+    Returns (scores: [n_texts, n_bins], bin_labels: List[str]).
+    """
+    if not texts or not bins:
+        return np.zeros((len(texts), len(bins)), dtype=float), [b.label for b in bins]
+
+    # Build bin prototype centroids
+    proto_texts = []
+    bin_offsets = []
+    for b in bins:
+        ps = b.prototypes if b.prototypes else [b.label]
+        bin_offsets.append((len(proto_texts), len(ps)))
+        proto_texts.extend(ps)
+
+    P = embedder.embed_texts(proto_texts)  # (#protos, d)
+    if P.size == 0:
+        # No prototype embeddings -> return zeros with correct shapes
+        return np.zeros((len(texts), len(bins)), dtype=float), [b.label for b in bins]
+
+    centroids = []
+    for off, ln in bin_offsets:
+        C = P[off : off + ln, :]
+        if C.size == 0:
+            # Safety: if a bin has no prototypes after encoding, skip as 0 vector
+            centroids.append(np.zeros((1, P.shape[1]), dtype=float))
+        else:
+            centroids.append(C.mean(axis=0, keepdims=True))
+
+    Cmat = np.vstack(centroids)  # (n_bins, d)
+
+    T = embedder.embed_texts(texts)  # (n_texts, d)
+    if T.size == 0:
+        return np.zeros((len(texts), len(bins)), dtype=float), [b.label for b in bins]
+
+    # cosine(T, C) => (n_texts, n_bins)
+    Tn = T / (np.linalg.norm(T, axis=1, keepdims=True) + 1e-12)
+    Cn = Cmat / (np.linalg.norm(Cmat, axis=1, keepdims=True) + 1e-12)
+    S = Tn @ Cn.T
+    return S, [b.label for b in bins]
+
+
+# =============================================================================
+# Helpers - OpenAI LLM JSON calling
+# =============================================================================
+
+def _ensure_dict(raw: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
+    """If raw is not a dict, return fallback; otherwise return raw."""
+    return raw if isinstance(raw, dict) else fallback
+
+def _llm_json(*, client, llm_model, system_msg, user_msg, fallback):
     """Call the OpenAI client to get structured JSON; return fallback on any error or parse failure."""
     try:
-        if _HAS_OPENAI_V1 and isinstance(client, OpenAI):
-            resp = client.chat.completions.create(
-                model=llm_model,
-                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                temperature=0.0,
-                response_format={"type": "json_object"},
+        print("\n=== LLM CALL START ===")
+        print(f"[model] {llm_model}")
+        print(f"[system_msg]\n{system_msg[:300]}...")
+        print(f"[user_msg]\n{user_msg[:300]}...")
+
+        resp = client.chat.completions.create(
+            model=llm_model,
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg},
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+            max_tokens=3000,
+        )
+        content = resp.choices[0].message.content
+        print("\n[RAW RESPONSE START]")
+        print(content[:2000])
+        print("[RAW RESPONSE END]\n")
+
+        if isinstance(content, str) and content.strip().startswith("```"):
+            print("[DEBUG] removing markdown fence")
+            content = re.sub(
+                r"^```(?:json)?\s*|\s*```$",
+                "",
+                content.strip(),
+                flags=re.IGNORECASE | re.DOTALL,
             )
-            content = resp.choices[0].message.content
-        elif _HAS_OPENAI_LEGACY:
-            _openai_legacy.api_key = getattr(client, "api_key", os.getenv("OPENAI_API_KEY"))
-            resp = _openai_legacy.ChatCompletion.create(
-                model=llm_model,
-                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                temperature=0.0,
-            )
-            content = resp["choices"][0]["message"]["content"]
-        else:  # pragma: no cover
-            return fallback
+
         try:
-            return json.loads(content)
-        except Exception:
-            return fallback
-    except Exception:
+            data = json.loads(content)
+            print("[DEBUG] json.loads() succeeded.")
+            return data
+        except Exception as e1:
+            print(f"[DEBUG] json.loads failed: {e1}")
+
+        m = re.search(r"\{.*\}", content, flags=re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(0))
+                print("[DEBUG] salvage json.loads() succeeded.")
+                return data
+            except Exception as e2:
+                print(f"[DEBUG] salvage failed: {e2}")
+
+        print("[DEBUG] All JSON parse attempts failed; returning fallback.")
         return fallback
 
-
-# =============================================================================
-# Lightweight CLI (optional)
-# =============================================================================
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="RIHU prototype CLI (improved, bounded axes)")
-    parser.add_argument("input", help="Path to a JSONL file with objects {id, text, ...} (pre-chunked)")
-    parser.add_argument("output", help="Path to save the Universe JSON")
-    parser.add_argument("--model", default=os.getenv("RIHU_LLM_MODEL", "gpt-4o-mini"))
-    parser.add_argument("--embed", default=os.getenv("RIHU_EMBED_MODEL", "text-embedding-3-small"))
-    parser.add_argument("--dims", type=int, default=None, help="If omitted, dims=K (LLM-chosen axes within [3,10])")
-    parser.add_argument("--iters", type=int, default=6)
-    parser.add_argument("--no_llm_hf", action="store_true", help="Disable LLM HF extraction")
-    parser.add_argument("--no_llm_merge", action="store_true", help="Disable LLM class consolidation")
-    parser.add_argument("--anchors", nargs="*", help="Anchor class names (space-separated)")
-    parser.add_argument("--use_llm_anchor_coords", action="store_true", help="Enable LLM-proposed anchor coords + one-shot alignment")
-
-    args = parser.parse_args()
-
-    # Load chunks
-    chunks: List[Dict[str, Any]] = []
-    with open(args.input, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            chunks.append(json.loads(line))
-
-    # Init client
-    if _HAS_OPENAI_V1:
-        client = OpenAI()
-    elif _HAS_OPENAI_LEGACY:
-        client = _openai_legacy  # type: ignore
-    else:
-        raise SystemExit("OpenAI SDK not installed. pip install openai")
-
-    uni = KAGUniverse.build(
-        chunks=chunks,
-        openai_client=client,
-        llm_model=args.model,
-        embedding_model=args.embed,
-        dims=args.dims,  # None => dims = K in [3,10]
-        iterations=args.iters,
-        use_llm_hf_extraction=not args.no_llm_hf,
-        use_llm_class_consolidation=not args.no_llm_merge,
-        anchors=args.anchors,
-        use_llm_anchor_coords=args.use_llm_anchor_coords,
-    )
-
-    with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(uni.to_json(), f, ensure_ascii=False, indent=2)
-
-    print(f"Saved Universe -> {args.output}")
+    except Exception as e:
+        print("[EXCEPTION] during _llm_json")
+        print(e)
+        import traceback
+        traceback.print_exc()
+        return fallback
