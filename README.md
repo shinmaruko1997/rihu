@@ -159,14 +159,19 @@ Good axes:
 
 The following section outlines how these geometric ideas are implemented concretely in RIHU’s Python prototype.
 
-1. **Propose axes** (LLM, single call, **K in [3,10]**).
-2. **Extract HFs & Classes** (LLM-assisted with fallbacks).
-3. **Mechanical merge** (name normalization + alias consolidation), optionally followed by **LLM consolidation**.
-4. **Initial coordinates** via embeddings + SVD projection to (D) dimensions.
-5. *(Optional)* **Anchor targets & one-shot affine alignment** (anchors then remain fixed).
-6. **Iterative relaxation** (HFs → class centroids; classes → instance-HF centroids).
-7. **Scale normalization** — **prefer anchors** when available; otherwise use all classes.
-8. **Metrics** — centroid / radius (enclosing-ball approx) / volume / power.
+1. **Propose axes** (LLM, single call, **K in [3,10]**; if `dims` is unset, the working dimensionality defaults to K and is later clamped to the available embedding rank and sample count).
+2. **Propose axis bins** (LLM, per axis, **3–7 discrete bins**) — short, interpretable patterns (label/description/prototypes) along each continuous axis.
+3. **Extract HFs & Classes** (LLM-assisted with fallbacks).
+4. **Merge near-duplicates**
+   4.1 **Mechanical merge** (name normalization + alias consolidation).
+   4.2 **Embedding-based blocking** to propose candidate class pairs → **auto-merge high-confidence pairs**, **LLM disambiguation** for ambiguous pairs.
+   4.3 *(Optional)* **LLM consolidation** over remaining Classes.
+5. **Initial coordinates** via text embeddings + **SVD projection** to **D** dimensions (D chosen per step 1 and **clamped** to embedding rank / sample count).
+6. *(Optional)* **Anchor targets & one-shot affine alignment** — LLM proposes target coordinates for anchors within a bounded range; solve a single affine map; **anchors remain fixed** thereafter.
+7. **Iterative relaxation** (HFs → class centroids; classes → instance-HF centroids; **anchors do not move**).
+8. **Scale normalization** — **prefer anchors** when available; otherwise use all classes.
+9. **Metrics** — centroid / radius (enclosing-ball approx) / volume / power.
+10. **Axis-bin interpretability scoring** — embed HF/class signatures vs. bin prototypes to record per-axis soft memberships and top-bin labels for HFs and Classes.
 
 ---
 
@@ -344,65 +349,30 @@ The script will automatically:
 You’ll see output like:
 
 ```
-[RIHU] Building new universe from holmes.txt -> holmes/
-[RIHU] Loading prebuilt universe: holmes\universe.json
+[objective_search]
+  seeds: ['Sherlock Holmes', 'Irene Adler']
+  - hf_hf1  score=0.500  dist=0.764  text=Holmes deduces that the child's disposition is abnormally cruel, which may come ...  classes=['Sherlock Holmes', 'Watson', 'Miss Hunter']
 
-[Normalize] Mapping seed classes (typo/variant correction):
-  - 'holmes' → Holmes  (exact/alias match)
-  - 'adler' → (no close match; using original)
-
-[Search] Objective from seed classes (mapped): ['Holmes', 'adler']
-[Search] Subjective from centroid → nearest class: blue stone
-[Search] Subjective per class: Holmes
-[Search] Subjective per class: adler
-
-[RIHU] Saved search results -> holmes\searches.json
-
-===== Objective (top neighbors) =====
-  - HF[hf_hf28]: d=0.373 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
-  - HF[hf_hf17]: d=0.377 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
-  - HF[hf_hf18]: d=0.377 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
-  - HF[hf_hf26]: d=0.391 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
-  - HF[hf_hf27]: d=0.450 classes=Holmes, Stoke Moran | Holmes planned to visit Stoke Moran to investigate the case further....
-  - HF[hf_hf29]: d=0.744 classes=Holmes, Dr. Roylott, will | Holmes discovered that the deceased wife’s will indicated financial motives for Dr. Roylott to prevent his stepdaughters...
-
-===== Subjective from centroid (nearest class) =====
-  - HF[hf_hf17]: d=0.224 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
-  - HF[hf_hf18]: d=0.224 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
-  - HF[hf_hf28]: d=0.241 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
-  - HF[hf_hf27]: d=0.274 classes=Holmes, Stoke Moran | Holmes planned to visit Stoke Moran to investigate the case further....
-  - HF[hf_hf12]: d=0.424 classes=Miss Hunter, Copper Beeches | Miss Hunter observed that one wing of the house was not inhabited....
-  - HF[hf_hf9]: d=0.454 classes=Miss Hunter, giant dog | Miss Hunter saw a giant dog on the lawn at night....
-  - HF[hf_hf29]: d=0.497 classes=Holmes, Dr. Roylott, will | Holmes discovered that the deceased wife’s will indicated financial motives for Dr. Roylott to prevent his stepdaughters...
-  - HF[hf_hf26]: d=0.505 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
-  * Ctx: blue stone (r=0.842, power=3.58)
-  * Ctx: Countess of Morcar (r=0.688, power=3.68)
-  * Ctx: Isa Whitney (r=0.824, power=2)
-  * Ctx: Mary (r=1.120, power=0.646)
-  * Ctx: Dr. Roylott (r=1.587, power=0.264)
-  * Ctx: £1000 (r=0.464, power=17.6)
-  * Ctx: narrator (r=1.364, power=0.282)
-  * Ctx: Mrs. Moulton (r=1.329, power=0.367)
-
-===== Subjective per seed class =====
-- Holmes
-  - HF[hf_hf4]: d=0.268 classes=Mr. Rucastle, Miss Hunter, drawing-room | Mr. Rucastle told funny stories to Miss Hunter in the drawing-room....
-  - HF[hf_hf8]: d=0.357 classes=Mr. Rucastle, Miss Hunter, mastiff | Mr. Rucastle warned Miss Hunter not to go near the mastiff at night....
-  - HF[hf_hf28]: d=0.373 classes=Dr. Roylott, Holmes, Dr. Watson | Dr. Grimesby Roylott confronted Holmes and Watson, accusing them of meddling in his affairs....
-  - HF[hf_hf17]: d=0.377 classes=Miss Hunter, Holmes | Miss Hunter planned to send a wire to Holmes for help....
-  - HF[hf_hf18]: d=0.377 classes=Holmes, Miss Hunter | Holmes deduced that Miss Hunter was brought to impersonate someone....
-  - HF[hf_hf26]: d=0.391 classes=Holmes, Julia | Holmes noted that the flooring and walls of the room where Julia died were sound and secure....
-- adler
-  (none)
+[subjective_search]
+  vantage: Sherlock Holmes
+  inside:
+  - hf_hf13  score=0.632  dist=0.266  text=Holmes revealed that Sir George Burnwell and Mary fled together....  classes=['Sir George Burnwell', 'Mary']
+  - hf_hf9  score=0.627  dist=0.275  text=Holmes expresses concern about the unusual conditions of the job offer and the p...  classes=['Winchester', 'Winchester', '£120', 'Violet Hunter', 'Jephro Rucastle']
+  - hf_hf17  score=0.578  dist=0.384  text=Holmes disguised himself to gather information about Sir George Burnwell....  classes=['Holmes', 'Sir George Burnwell']
+  - hf_hf14  score=0.569  dist=0.406  text=Arthur saw Mary carrying the coronet and handing it to someone....  classes=['Arthur', 'Mary', 'coronet']
+  - hf_hf12  score=0.560  dist=0.429  text=Holmes and Watson arrive at the Black Swan Hotel in Winchester to meet Violet Hu...  classes=['Black Swan Hotel', 'Winchester', 'lunch', 'Violet Hunter', 'Baker Street']
+  periphery:
+  - hf_hf4  score=0.363  dist=1.203  text=A fat man appears at the door with a heavy stick, indicating a confrontation is ...  classes=['fat man', 'heavy stick']
+  - hf_hf16  score=0.362  dist=1.211  text=Holmes identified a struggle in the snow with drops of blood....  classes=['struggle', 'snow', 'blood']
+  - hf_hf8  score=0.358  dist=1.232  text=Miss Violet Hunter is now the head of a private school at Walsall, where she has...  classes=['Miss Violet Hunter', 'Miss Violet Hunter']
+  - hf_hf_10  score=0.351  dist=1.281  text=The young lady described a peculiar performance where Mr. Rucastle told her funn...  classes=['funny stories', 'window']
+  - hf_hf_17  score=0.346  dist=1.310  text=The young lady discovered a locked door in the deserted wing of the house, which...  classes=['locked door', 'skylight']
 ```
 
 All generated files will appear under the new folder:
 
 ```
-holmes/
-├── universe.json
-├── axes.json
-└── searches.json
+holmes/universe.json
 ```
 
 ---
@@ -422,300 +392,6 @@ A sample dataset universe.json, created based on The Adventures of Sherlock Holm
 * Example:
 
 ![Viewer Screenshot](https://github.com/user-attachments/assets/e59e28d3-56af-47cf-af78-697e2062bf12)
-
----
-
-## Minimal Usage Example — Search Only
-
-If you also want to perform Universe Construction, please use the full version sample code located at sample/sample.py.
-
-```python
-from __future__ import annotations
-
-import json
-import os
-import re
-import sys
-import unicodedata
-import difflib
-from pathlib import Path
-from typing import List, Dict, Any, Tuple
-
-import numpy as np
-
-# Search parameters (adjust if needed)
-SUBJ_RADIUS = 1.5
-TOPK = 12
-
-# Sentence splitting regex (kept for compatibility)
-_SENT_SPLIT = re.compile(r'(?<=[.!?])\s+(?=[A-Z0-9\"\\(\\[])')
-
-# Fuzzy matching threshold
-FUZZY_MIN_RATIO = 0.72
-
-# Import RIHU
-from rihu import KAGUniverse
-
-
-def fail(msg: str):
-    print(f"[ERROR] {msg}")
-    sys.exit(1)
-
-
-# -----------------------------
-# Seed class normalization & mapping
-# -----------------------------
-
-def _norm_name(s: str) -> str:
-    """Apply NFKC normalization, lowercase, remove punctuation, and collapse spaces."""
-    s = unicodedata.normalize("NFKC", s or "")
-    s = s.strip().lower()
-    s = s.replace("-", " ")
-    s = re.sub(r"[^\w\s]", "", s)
-    s = re.sub(r"\s+", " ", s)
-    return s
-
-
-def _build_class_alias_index(uni: KAGUniverse) -> Tuple[Dict[str, str], Dict[str, List[str]]]:
-    """
-    Build:
-      - alias_to_canonical: normalized alias/name -> canonical class name
-      - canonical_to_aliases: canonical class name -> list of display aliases (including canonical)
-    """
-    alias_to_canonical: Dict[str, str] = {}
-    canonical_to_aliases: Dict[str, List[str]] = {}
-    for cname, node in uni.classes.items():
-        if not cname:
-            continue
-        canonical_to_aliases.setdefault(cname, [])
-        # include canonical
-        canonical_to_aliases[cname].append(cname)
-        alias_to_canonical[_norm_name(cname)] = cname
-        # include aliases
-        for a in (node.aliases or []):
-            if not a:
-                continue
-            canonical_to_aliases[cname].append(a)
-            alias_to_canonical[_norm_name(a)] = cname
-    # deduplicate alias lists while preserving order
-    for k, arr in canonical_to_aliases.items():
-        seen = set()
-        dedup = []
-        for x in arr:
-            if x not in seen:
-                seen.add(x)
-                dedup.append(x)
-        canonical_to_aliases[k] = dedup
-    return alias_to_canonical, canonical_to_aliases
-
-
-def _best_fuzzy_match(
-    query: str,
-    alias_to_canonical: Dict[str, str],
-    canonical_to_aliases: Dict[str, List[str]],
-    min_ratio: float = FUZZY_MIN_RATIO,
-) -> Tuple[str | None, str | None, float]:
-    """
-    Return (canonical_name, matched_alias, ratio) or (None, None, 0.0)
-    1) Try exact normalized match
-    2) If not found, perform fuzzy matching against all aliases
-    """
-    if not query:
-        return None, None, 0.0
-    qn = _norm_name(query)
-
-    # 1) Exact normalized match
-    if qn in alias_to_canonical:
-        can = alias_to_canonical[qn]
-        aliases = canonical_to_aliases.get(can, [can])
-        display = query if query in aliases else aliases[0]
-        return can, display, 1.0
-
-    # 2) Fuzzy match against all aliases
-    all_aliases = []
-    for _, aliases in canonical_to_aliases.items():
-        for a in aliases:
-            all_aliases.append(a)
-
-    norm_aliases = [_norm_name(a) for a in all_aliases]
-    best_idx = -1
-    best_ratio = 0.0
-    for i, na in enumerate(norm_aliases):
-        r = difflib.SequenceMatcher(None, qn, na).ratio()
-        if r > best_ratio:
-            best_ratio = r
-            best_idx = i
-
-    if best_idx >= 0 and best_ratio >= min_ratio:
-        matched_alias = all_aliases[best_idx]
-        can = alias_to_canonical.get(_norm_name(matched_alias))
-        return can, matched_alias, best_ratio
-
-    return None, None, 0.0
-
-
-def map_seed_classes(uni: KAGUniverse, seeds: List[str], verbose: bool = True) -> List[str]:
-    """
-    Map user-provided seed class strings to the closest existing canonical Class names in the universe.
-    Handles typos and variations via normalization + fuzzy matching.
-    """
-    alias_to_canonical, canonical_to_aliases = _build_class_alias_index(uni)
-    out: List[str] = []
-    print("\n[Normalize] Mapping seed classes (typo/variant correction):")
-    for s in seeds:
-        can, alias, score = _best_fuzzy_match(s, alias_to_canonical, canonical_to_aliases, FUZZY_MIN_RATIO)
-        if can:
-            if verbose:
-                if _norm_name(s) == _norm_name(alias):
-                    print(f"  - '{s}' → {can}  (exact/alias match)")
-                else:
-                    print(f"  - '{s}' → {can}  (fuzzy: '{alias}', score={score:.3f})")
-            out.append(can)
-        else:
-            print(f"  - '{s}' → (no close match; using original)")
-            out.append(s)
-    return out
-
-
-# -----------------------------
-# Universe loading only (no build)
-# -----------------------------
-
-def load_universe(uname: str) -> KAGUniverse:
-    """
-    Load an existing <uname>/universe.json.
-    If not found, raise an error (no build performed).
-    """
-    udir = Path(uname)
-    ujson = udir / "universe.json"
-    if not (udir.exists() and ujson.exists()):
-        fail(f"Universe file not found: {ujson}\n"
-             f"Please build the universe first using RIHU's build process.")
-    print(f"[RIHU] Loading prebuilt universe: {ujson}")
-    data = json.loads(ujson.read_text(encoding="utf-8"))
-    return KAGUniverse.from_json(data)
-
-
-# -----------------------------
-# Geometry helpers
-# -----------------------------
-
-def nearest_class_to_point(uni: KAGUniverse, point: List[float]) -> str | None:
-    best = None
-    best_d = float("inf")
-    for name, node in uni.classes.items():
-        if node.coord is None:
-            continue
-        d = float(np.linalg.norm(np.array(node.coord) - np.array(point)))
-        if d < best_d:
-            best_d = d
-            best = name
-    return best
-
-
-def centroid_of_hfs(uni: KAGUniverse, hf_ids: List[str]) -> List[float] | None:
-    coords = []
-    for hid in hf_ids:
-        hf = uni.hfs.get(hid)
-        if hf and hf.coord is not None:
-            coords.append(hf.coord)
-    if not coords:
-        return None
-    arr = np.array(coords, dtype=float)
-    return arr.mean(axis=0).tolist()
-
-
-# -----------------------------
-# Search orchestration
-# -----------------------------
-
-def run_searches(uname: str, classes: List[str]):
-    # Load prebuilt universe
-    uni = load_universe(uname)
-
-    # 1) Normalize and map seed class names
-    mapped_classes = map_seed_classes(uni, classes, verbose=True)
-
-    # 2) Objective search from mapped classes
-    print("\n[Search] Objective from seed classes (mapped):", mapped_classes)
-    res_obj = uni.objective_search(class_names=mapped_classes, k=TOPK)
-
-    # 3) Compute centroid of retrieved HFs → find nearest class and run subjective search
-    hf_ids = [r["hf_id"] for r in res_obj.get("neighbors", [])]
-    hf_centroid = centroid_of_hfs(uni, hf_ids)
-
-    subj_from = None
-    res_sub_from_centroid = None
-    if hf_centroid is not None:
-        subj_from = nearest_class_to_point(uni, hf_centroid)
-        if subj_from is not None:
-            print(f"[Search] Subjective from centroid → nearest class: {subj_from}")
-            res_sub_from_centroid = uni.subjective_search(vantage=subj_from, k=TOPK, radius=SUBJ_RADIUS)
-        else:
-            print("[Search] No suitable vantage class found near centroid.")
-    else:
-        print("[Search] No HF centroid computed (no neighbors).")
-
-    # 4) Run subjective search for each mapped class individually
-    res_sub_each: Dict[str, Any] = {}
-    for c in mapped_classes:
-        print(f"[Search] Subjective per class: {c}")
-        res_sub_each[c] = uni.subjective_search(vantage=c, k=TOPK, radius=SUBJ_RADIUS)
-
-    # 5) Save search results and print digest
-    out_dir = Path(uname)
-    results = {
-        "seed_classes_input": classes,
-        "seed_classes_mapped": mapped_classes,
-        "objective": res_obj,
-        "subjective_from_centroid_vantage": subj_from,
-        "subjective_from_centroid": res_sub_from_centroid,
-        "subjective_each": res_sub_each,
-    }
-    (out_dir / "searches.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\n[RIHU] Saved search results -> {out_dir / 'searches.json'}")
-
-    dump_digest(res_obj, res_sub_from_centroid, res_sub_each)
-
-
-def dump_digest(res_obj: Dict[str, Any], res_sub_from_centroid: Dict[str, Any] | None, res_sub_each: Dict[str, Any]):
-    """Pretty-print search summaries to stdout."""
-    def hf_lines(neis: List[Dict[str, Any]], n=5):
-        lines = []
-        for r in neis[:n]:
-            d = r.get('distance', 0.0)
-            classes = r.get('classes') or []
-            text = r.get('text') or ""
-            lines.append(f"  - HF[{r['hf_id']}]: d={d:.3f} classes={', '.join(classes[:4])} | {text[:120]}...")
-        return "\n".join(lines) if lines else "  (none)"
-
-    print("\n===== Objective (top neighbors) =====")
-    print(hf_lines(res_obj.get("neighbors", []), n=8))
-
-    print("\n===== Subjective from centroid (nearest class) =====")
-    if res_sub_from_centroid:
-        neis = res_sub_from_centroid.get("neighbors") or res_sub_from_centroid.get("inside", [])
-        print(hf_lines(neis, n=8))
-        ctx = res_sub_from_centroid.get("context_classes", [])[:8]
-        for c in ctx:
-            r = c.get('radius', 0.0) or 0.0
-            p = c.get('power', 0.0) or 0.0
-            print(f"  * Ctx: {c['class']} (r={r:.3f}, power={p:.3g})")
-    else:
-        print("  (none)")
-
-    print("\n===== Subjective per seed class =====")
-    for k, v in res_sub_each.items():
-        print(f"- {k}")
-        neis = v.get("neighbors") or v.get("inside", [])
-        print(hf_lines(neis, n=6))
-
-
-if __name__ == "__main__":
-    universe_name = "holmes"
-    seed_classes = ["holmes", "adler"]  # Demo input (typo mapping visible)
-    run_searches(universe_name, seed_classes)
-```
 
 ---
 
