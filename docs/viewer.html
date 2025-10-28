@@ -1,23 +1,23 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RIHU — KAG Universe Viewer (Light)</title>
+  <title>RIHU — KAG Universe Viewer</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <style>
-    :root { --bg:#f5f5f5; --fg:#0b1220; --muted:#475569; --accent:#0ea5e9; }
+    :root { --bg:#f5f5f5; --fg:#0b1220; --muted:#475569; --accent:#0ea5e9; --panel:#ffffff; --border:#e5e7eb; }
     html,body{height:100%;}
     body{margin:0; background:var(--bg); color:var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
-    header{padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    header{padding:16px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap}
     header h1{margin:0; font-size:18px; letter-spacing:.3px}
-    header .pill{padding:4px 8px; border-radius:999px; background:#0ea5e980; color:#08141d; font-weight:600}
-    main{display:grid; grid-template-columns: 340px 1fr; min-height: calc(100% - 64px);} 
-    #panel{border-right:1px solid #e5e7eb; padding:16px; overflow:auto}
+    header .tiny{font-size:12px; color:var(--muted)}
+    main{display:grid; grid-template-columns: 360px 1fr; min-height: calc(100% - 64px);} 
+    #panel{border-right:1px solid var(--border); padding:16px; overflow:auto}
     #panel h2{font-size:14px; margin:16px 0 8px; color:var(--muted)}
-    #panel .card{background:#ffffff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; margin-bottom:12px}
+    #panel .card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px; margin-bottom:12px}
     #panel label{font-size:13px; color:var(--fg)}
-    #panel input[type="file"], select, input[type="range"], input[type="checkbox"]{ width:100%; margin-top:6px; }
+    #panel input[type="file"], select{ width:100%; margin-top:6px; }
     #panel .row{display:flex; gap:8px}
     #panel .row > *{flex:1}
     #meta{font-size:12px; color:var(--muted)}
@@ -25,7 +25,18 @@
     .tiny{font-size:11px; color:var(--muted)}
     .badge{display:inline-block; padding:2px 6px; border-radius:999px; background:#e5e7eb; color:#111827; font-size:11px}
     a, a:visited{color: var(--accent)}
-    .legend{display:flex; gap:8px; flex-wrap:wrap}
+
+    /* Axis Inspector */
+    #axisInspector .axis-row{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border)}
+    #axisInspector .axis-hl{display:flex; gap:10px; align-items:center; margin:4px 0}
+    #axisInspector .pillbtn{padding:2px 8px; border-radius:999px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; font-size:12px}
+    #axisInspector .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+    /* HF Colors legend */
+    #hfColors .legend-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+    #hfColors .chip{display:flex; align-items:center; gap:6px; font-size:12px; border:1px solid var(--border); padding:4px 8px; border-radius:999px; background:#fff}
+    #hfColors .swatch{width:12px; height:12px; border-radius:3px; border:1px solid rgba(0,0,0,.1)}
+    #warn{font-size:12px; color:#b91c1c; margin-top:6px}
   </style>
 </head>
 <body>
@@ -39,7 +50,9 @@
         <h2>Load universe.json</h2>
         <input id="file" type="file" accept="application/json" />
         <div id="meta" style="margin-top:8px"></div>
+        <div id="warn"></div>
       </div>
+
       <div class="card">
         <h2>Axes (Dimensions)</h2>
         <div class="row">
@@ -58,20 +71,32 @@
         </div>
         <div class="tiny" id="axisDesc" style="margin-top:6px"></div>
       </div>
+
+      <div class="card" id="axisInspector">
+        <h2>Axis Inspector</h2>
+        <div class="tiny">Meaning/trend of each axis (bins shown if available). <b>Flip</b> to invert polarity.</div>
+        <div id="axisExplain"></div>
+      </div>
+
+      <div class="card" id="hfColors">
+        <h2>HF Colors</h2>
+        <div class="tiny">HF colors are assigned automatically per <b>source chunk</b> (<code>source_names</code> or <code>source_ids</code>).</div>
+        <div class="legend-list" id="hfLegend"></div>
+      </div>
+
       <div class="card">
         <h2>Legend / Tips</h2>
-        <div class="legend">
-          <span class="badge">● Classes</span>
-          <span class="badge">● HFs</span>
-        </div>
-        <p class="tiny">Class marker sizes ≈ volume^(1/D) (normalized). Hover to see power / radius.</p>
-        <p class="tiny">HFs carry their text and participating classes in hover.</p>
+        <p class="tiny"><span class="badge">● Classes</span> … semi-transparent circles (size ≈ volume^(1/D)).</p>
+        <p class="tiny"><span class="badge">◆ HFs</span> … diamonds. Colors by source chunk.</p>
+        <p class="tiny">Hover shows estimated bin (if any) / power / radius / participating classes.</p>
       </div>
+
       <div class="card">
         <h2>About axes</h2>
-        <p class="tiny">If your universe was built with <em>interpretable axes</em>, the first 3 dimensions often map to concepts like <em>Time / Location / Semantics</em>. You can remap X/Y/Z to explore different projections.</p>
+        <p class="tiny">When axes are interpretable, X/Y/Z may correspond to Time / Location / Semantics, etc. Use <b>Flip</b> in Axis Inspector to adjust polarity.</p>
       </div>
     </section>
+
     <section>
       <div id="plot"></div>
     </section>
@@ -80,18 +105,24 @@
   <script>
     let UNIVERSE = null;
     let DIMS = 3;
+
     const els = {
       file: document.getElementById('file'),
       meta: document.getElementById('meta'),
+      warn: document.getElementById('warn'),
       axX: document.getElementById('axX'),
       axY: document.getElementById('axY'),
       axZ: document.getElementById('axZ'),
       axisDesc: document.getElementById('axisDesc'),
-      clsScaleVal: document.getElementById('clsScaleVal'),
-      hfSizeVal: document.getElementById('hfSizeVal'),
+      axisExplain: document.getElementById('axisExplain'),
+      hfLegend: document.getElementById('hfLegend'),
       plot: document.getElementById('plot'),
     };
 
+    // Axis flip flags
+    let AXIS_FLIP = { x:false, y:false, z:false };
+
+    // File read
     function readFile(f){
       return new Promise((resolve, reject)=>{
         const fr = new FileReader();
@@ -101,17 +132,19 @@
       });
     }
 
+    // Axis label/description
     function axisLabel(i, meta){
+      // Return axis name only (no Dim or extra notes)
       if (!meta || !meta.axes || !meta.axes[i]) return `Dim ${i}`;
       const ax = meta.axes[i];
-      return ax?.name ? `${ax.name} (Dim ${i})` : `Dim ${i}`;
+      return ax?.name || `Dim ${i}`;
     }
-
     function axisDesc(meta){
       if (!meta || !meta.axes) return '';
       return meta.axes.map((ax, i)=>`<div><b>${i}.</b> ${ax.name} — <span class="tiny">${ax.description||''}</span></div>`).join('');
     }
 
+    // Infer actual embedding dimensionality
     function inferDims(u, meta){
       const byAxes = meta?.axes?.length ?? 0;
       const byCoords = Math.max(
@@ -122,6 +155,7 @@
       return Math.max(meta?.dims ?? 3, byAxes, byCoords);
     }
 
+    // Populate selectors
     function populateAxisSelectors(meta){
       const dims = inferDims(UNIVERSE, meta);
       DIMS = dims;
@@ -133,11 +167,12 @@
           if (i === idx) opt.selected = true;
           sel.appendChild(opt);
         }
-        sel.onchange = draw;
+        sel.onchange = ()=>{ draw(); };
       });
       els.axisDesc.innerHTML = axisDesc(meta);
     }
 
+    // Unpack universe
     function unpackUniverse(u){
       const classes = [];
       for (const [name, node] of Object.entries(u.classes||{})){
@@ -156,19 +191,23 @@
       const hfs = [];
       for (const [hid, hf] of Object.entries(u.hfs||{})){
         if (!hf.coord) continue;
+        const sname = Array.isArray(hf.source_names) && hf.source_names.length ? hf.source_names[0] : null;
+        const sid   = Array.isArray(hf.source_ids)   && hf.source_ids.length   ? hf.source_ids[0]   : null;
+        const srcKey = sname || sid || '—';
         hfs.push({
           id: hid,
           text: hf.text || '',
           x: hf.coord[0], y: hf.coord[1], z: hf.coord[2],
           coord: hf.coord,
           classes: hf.class_names || [],
-          sources: hf.source_ids || [],
+          sourceKey: String(srcKey),
         })
       }
       return {classes, hfs};
     }
 
-    function normalizeSizes(values, minPx=6, maxPx=40){
+    // Size normalization (for Classes)
+    function normalizeSizes(values, minPx=6, maxPx=32){
       const vals = values.filter(v=> typeof v === 'number' && isFinite(v) && v>0);
       if (vals.length === 0) return values.map(_=> minPx);
       const min = Math.min(...vals), max = Math.max(...vals);
@@ -180,13 +219,116 @@
       });
     }
 
+    // Valid coordinate check
     function hasDims(p, ...is){
       return Array.isArray(p.coord) && is.every(i => Number.isFinite(p.coord[i]));
     }
 
+    // Color palette
+    const PALETTE = [
+      '#2563eb','#16a34a','#dc2626','#9333ea','#ea580c',
+      '#0891b2','#e11d48','#22c55e','#7c3aed','#f59e0b',
+      '#0ea5e9','#d946ef','#f97316','#10b981','#3b82f6',
+      '#ef4444','#84cc16','#06b6d4','#a855f7','#fb7185'
+    ];
+
+    // Color assignment per source chunk
+    function buildHFColorMap(hfs){
+      const uniq = Array.from(new Set(hfs.map(h=>h.sourceKey)));
+      const cmap = {};
+      uniq.forEach((key, idx)=>{ cmap[key] = PALETTE[idx % PALETTE.length]; });
+      return cmap;
+    }
+
+    // Axis projection (with Flip)
+    function projectCoord(coord, dx, dy, dz){
+      const xx = coord[dx], yy = coord[dy], zz = coord[dz];
+      return {
+        x: AXIS_FLIP.x ? -xx : xx,
+        y: AXIS_FLIP.y ? -yy : yy,
+        z: AXIS_FLIP.z ? -zz : zz,
+      };
+    }
+
+    // Axis Inspector: summarize ends with representative top/bottom Class names
+    function topByAxis(arr, dimIdx, k=5, dir=+1){
+      const safe = arr.filter(p => Array.isArray(p.coord) && Number.isFinite(p.coord[dimIdx]));
+      return safe.sort((a,b)=> dir*(b.coord[dimIdx]-a.coord[dimIdx])).slice(0,k);
+    }
+    function summarizeAxis(u, dimIdx, classes){
+      const ax = u.meta?.axes?.[dimIdx];
+      const name = ax?.name || `Dim ${dimIdx}`;
+      const desc = ax?.description || '';
+      const highC = topByAxis(classes, dimIdx, 5, +1).map(p=>p.name);
+      const lowC  = topByAxis(classes, dimIdx, 5, -1).map(p=>p.name);
+      const highTxt = highC.slice(0,3).join(', ') || '—';
+      const lowTxt  = lowC.slice(0,3).join(', ') || '—';
+      return {name, desc, bins: ax?.bins||[], highC, lowC, highTxt, lowTxt};
+    }
+    function renderAxisInspector(u){
+      if (!u) { els.axisExplain.innerHTML = ''; return; }
+      const dx = +els.axX.value || 0;
+      const dy = +els.axY.value || 1;
+      const dz = +els.axZ.value || 2;
+      const {classes} = unpackUniverse(u);
+
+      const X = summarizeAxis(u, dx, classes);
+      const Y = summarizeAxis(u, dy, classes);
+      const Z = summarizeAxis(u, dz, classes);
+
+      const blocks = [ ['X', X, 'x', dx], ['Y', Y, 'y', dy], ['Z', Z, 'z', dz] ].map(([label, AX, key, dimIdx])=>{
+        // Show bin labels as text (no ruler)
+        const binTxt = (AX.bins && AX.bins.length)
+          ? AX.bins.map(b=>b.label).join(' · ')
+          : null;
+        const binDesc = binTxt ? `<div class="tiny"><b>Bins:</b> ${escapeHtml(binTxt)}</div>` : '';
+        return `
+          <div class="axis-row">
+            <div class="axis-hl">
+              <div><b>${label}</b> — <span class="mono">${escapeHtml(AX.name)}</span></div>
+              <button class="pillbtn" data-flip="${key}">${AXIS_FLIP[key] ? 'Unflip' : 'Flip'}</button>
+            </div>
+            <div class="tiny" style="margin:2px 0 6px">${escapeHtml(AX.desc)}</div>
+            ${binDesc}
+            <div class="tiny"><b>High-side examples:</b> ${escapeHtml(AX.highTxt)}</div>
+            <div class="tiny"><b>Low-side examples:</b> ${escapeHtml(AX.lowTxt)}</div>
+          </div>
+        `;
+      }).join('');
+      els.axisExplain.innerHTML = blocks;
+
+      // Flip handlers
+      els.axisExplain.querySelectorAll('button[data-flip]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const k = btn.getAttribute('data-flip');
+          AXIS_FLIP[k] = !AXIS_FLIP[k];
+          draw();
+        };
+      });
+    }
+
+    // Lookup bin labels (optional: meta.notes.axis_bin_membership)
+    function binLabelFor(u, kind /* 'HF'|'Class' */, idOrName, dimIdx){
+      const axName = u.meta?.axes?.[dimIdx]?.name;
+      const store = u.meta?.notes?.axis_bin_membership?.[kind];
+      if (!axName || !store) return null;
+      const rec = store[idOrName];
+      const label = rec?.[axName]?.top_label || null;
+      return label;
+    }
+
+    // Axis title (axis name only)
+    function axisTitle(u, dimIdx){
+      const ax = u.meta?.axes?.[dimIdx];
+      return ax?.name || `Dim ${dimIdx}`;
+    }
+
+    // Plot
     function draw(){
       if (!UNIVERSE) return;
       const u = UNIVERSE;
+      els.warn.textContent = '';
+
       const dx = +els.axX.value || 0;
       const dy = +els.axY.value || 1;
       const dz = +els.axZ.value || 2;
@@ -196,22 +338,45 @@
       const clsFiltered = classes.filter(p => hasDims(p, dx, dy, dz));
       const hfsFiltered = hfs.filter(p => hasDims(p, dx, dy, dz));
 
-      const warn = (classes.length && !clsFiltered.length) || (hfs.length && !hfsFiltered.length);
-      if (warn) {
-        els.axisDesc.innerHTML =
-          axisDesc(u.meta) + `<div class="tiny" style="color:#b91c1c;margin-top:6px">
-            選択された軸 (${dx},${dy},${dz}) をすべて持つ点がありません。</div>`;
+      if ((classes.length && !clsFiltered.length) || (hfs.length && !hfsFiltered.length)) {
+        els.warn.innerHTML = `No points can be displayed for this projection. Please check the axes and data.`;
       }
 
-      const proj = (p) => ({ x:p.coord[dx], y:p.coord[dy], z:p.coord[dz] });
+      const proj = (p) => projectCoord(p.coord, dx, dy, dz);
       const cls = clsFiltered.map(c => ({...c, ...proj(c)}));
       const hfp = hfsFiltered.map(h => ({...h, ...proj(h)}));
 
+      // Class size (pseudo: volume^(1/D))
       const D = inferDims(u, u.meta);
       const radiiLike = cls.map(c => (typeof c.volume==='number' && c.volume>0)
         ? Math.pow(c.volume, 1/Math.max(D,1)) : null);
-      const clsSizes = normalizeSizes(radiiLike, 4, 25);
+      const clsSizes = normalizeSizes(radiiLike, 6, 26);
 
+      // HF colors (by source chunk)
+      const HF_COLOR = buildHFColorMap(hfp);
+      const hfColors = hfp.map(h => HF_COLOR[h.sourceKey]);
+
+      // Update HF Colors legend
+      renderHFLegend(HF_COLOR);
+
+      // Pack bin labels (strings) for hover into customdata
+      const clsCustom = cls.map(p => ([
+        p.radius ?? '', p.power ?? '', p.volume ?? '', p.instances,
+        (p.aliases||[]).join(', '),
+        (binLabelFor(u,'Class',p.name,dx) || '-'),
+        (binLabelFor(u,'Class',p.name,dy) || '-'),
+        (binLabelFor(u,'Class',p.name,dz) || '-')
+      ]));
+      const hfCustom = hfp.map(p => ([
+        p.text,
+        (p.classes||[]).join(', '),
+        p.sourceKey,
+        (binLabelFor(u,'HF',p.id,dx) || '-'),
+        (binLabelFor(u,'HF',p.id,dy) || '-'),
+        (binLabelFor(u,'HF',p.id,dz) || '-')
+      ]));
+
+      // Traces (hide Plotly legend)
       const traces = [{
         type:'scatter3d', mode:'markers', name:'Classes',
         x: cls.map(p=>p.x), y: cls.map(p=>p.y), z: cls.map(p=>p.z),
@@ -219,13 +384,12 @@
         hovertemplate:
           '<b>%{text}</b><br>'+
           'x:%{x} y:%{y} z:%{z}<br>'+
+          'Xbin:%{customdata[5]} · Ybin:%{customdata[6]} · Zbin:%{customdata[7]}<br>'+
           'radius:%{customdata[0]} · power:%{customdata[1]}<br>'+
           'volume:%{customdata[2]} · instances:%{customdata[3]}<br>'+
-          'aliases:%{customdata[4]}<extra>Class</extra>',
-        customdata: cls.map(p=> [
-          p.radius ?? '', p.power ?? '', p.volume ?? '', p.instances, (p.aliases||[]).join(', ')
-        ]),
-        marker:{ size: clsSizes, opacity:0.5, symbol:'circle', line:{width:0} }
+          'aliases:%{customdata[4]}<extra></extra>',
+        customdata: clsCustom,
+        marker:{ size: clsSizes, opacity:0.5, symbol:'circle', line:{width:0} } // Non-wireframe
       },{
         type:'scatter3d', mode:'markers', name:'HFs',
         x: hfp.map(p=>p.x), y: hfp.map(p=>p.y), z: hfp.map(p=>p.z),
@@ -235,26 +399,48 @@
           'x:%{x} y:%{y} z:%{z}<br>'+
           '<i>%{customdata[0]}</i><br>'+
           'classes:%{customdata[1]}<br>'+
-          'sources:%{customdata[2]}<extra>HF</extra>',
-        customdata: hfp.map(p=> [p.text, (p.classes||[]).join(', '), (p.sources||[]).join(', ')]),
-        marker:{ size: 1.5, opacity:0.85, symbol:'diamond' }
+          'source:%{customdata[2]}<br>'+
+          'Xbin:%{customdata[3]} · Ybin:%{customdata[4]} · Zbin:%{customdata[5]}<extra></extra>',
+        customdata: hfCustom,
+        marker:{ size: 2, opacity:0.9, symbol:'diamond', color: hfColors }
       }];
 
       const layout = {
         paper_bgcolor:'#f5f5f5', plot_bgcolor:'#f5f5f5',
         scene:{
-          xaxis:{title: axisLabel(dx, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
-          yaxis:{title: axisLabel(dy, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
-          zaxis:{title: axisLabel(dz, u.meta), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          xaxis:{title: axisTitle(u, dx), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          yaxis:{title: axisTitle(u, dy), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
+          zaxis:{title: axisTitle(u, dz), gridcolor:'#d1d5db', zerolinecolor:'#d1d5db', backgroundcolor:'#f5f5f5'},
           aspectmode:'cube',
         },
-        legend:{x:0, y:1, font:{color:'#111827'}},
-        margin:{l:0,r:0,t:10,b:0}, showlegend:true,
+        showlegend:false,
+        margin:{l:0,r:0,t:10,b:0},
       };
 
-      Plotly.newPlot(els.plot, traces, layout, {responsive:true, displaylogo:false, modeBarButtonsToRemove:['toImage']});
+      Plotly.newPlot(els.plot, traces, layout, {
+        responsive:true, displaylogo:false, modeBarButtonsToRemove:['toImage']
+      });
+
+      // Refresh Axis Inspector
+      renderAxisInspector(UNIVERSE);
     }
 
+    function renderHFLegend(colorMap){
+      const entries = Object.entries(colorMap); // [[sourceKey, color], ...]
+      els.hfLegend.innerHTML = entries.map(([k, col])=>{
+        const label = (k === '—') ? 'No Source Name/ID' : k;
+        return `<span class="chip"><span class="swatch" style="background:${col}"></span>${escapeHtml(label)}</span>`;
+      }).join('');
+    }
+
+    // Light HTML escaping
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m=>({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+      }[m]));
+    }
+
+    // File selection
     els.file.addEventListener('change', async (e)=>{
       const f = e.target.files?.[0];
       if (!f) return;
@@ -262,15 +448,32 @@
         const txt = await readFile(f);
         const u = JSON.parse(txt);
         UNIVERSE = u;
+
+        // Initialize UI
         populateAxisSelectors(u.meta||{dims:3, axes:[]});
+
+        // Meta info
         const nC = Object.keys(u.classes||{}).length,
               nH = Object.keys(u.hfs||{}).length,
               nI = Object.keys(u.instances||{}).length,
-              dims = (u.meta?.dims)||3,
+              dims = (u.meta?.dims)||inferDims(u, u.meta)||3,
               model = u.meta?.llm_model || 'n/a',
               embed = u.meta?.embedding_model || 'n/a';
-        els.meta.innerHTML = `Dims: <b>${dims}</b> · Classes: <b>${nC}</b> · HFs: <b>${nH}</b> · Instances: <b>${nI}</b><br>`+
-          `<span class="tiny">LLM: ${model} · Embeddings: ${embed}</span>`;
+
+        els.meta.innerHTML =
+          `Dims: <b>${dims}</b> · Classes: <b>${nC}</b> · HFs: <b>${nH}</b> · Instances: <b>${nI}</b><br>`+
+          `<span class="tiny">LLM: ${escapeHtml(model)} · Embeddings: ${escapeHtml(embed)}</span>`;
+
+        // Warning: all coords are null
+        const allNull =
+          Object.values(u.classes||{}).every(n=>!Array.isArray(n.coord)) &&
+          Object.values(u.hfs||{}).every(n=>!Array.isArray(n.coord));
+        if (allNull){
+          els.warn.innerHTML = `It appears all nodes have <code>coord</code> as <code>null</code>. Please ensure your embedding/SVD step that assigns initial coordinates has been run.`;
+        } else {
+          els.warn.textContent = '';
+        }
+
         draw();
       } catch(err){
         console.error(err);
