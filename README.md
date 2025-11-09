@@ -175,6 +175,52 @@ The following section outlines how these geometric ideas are implemented concret
 
 ---
 
+## Alternative Universe Construction (Draft)
+
+A Class can be viewed as a *continuous presence* that emerges from the distribution of factual “particles” within the data.
+When many Hypothetical Facts cluster around similar semantic or structural patterns, the outline of a Class begins to appear naturally.
+This suggests that Classes need not be invented by a model; rather, they can be *discovered* through the observable regularities in how facts co-occur and organize themselves.
+
+With this perspective, we are exploring methods to identify Classes and axes in ways that are as **stable**, **reproducible**, and **LLM-independent** as possible.
+Instead of relying on a generative model to propose semantic structures, we we aim to let geometric and statistical patterns to surface first — and bring in an LLM only at the final stage, for optional naming or summarization.
+
+This is an exploratory direction and not yet integrated into the main RIHU pipeline.
+The following outlines an in-progress approach toward this goal.
+
+### Overview of a More Reproducible Class and Axis Discovery Workflow
+
+1. **Fact–Class Geometry First**
+   Begin from HF–Class incidence patterns (co-occurrence matrices, TF-IDF profiles, PMI weighting), allowing structure to arise from actual data distributions rather than model-generated abstractions.
+
+2. **Soft Clustering of HFs**
+   Use overlapping or probabilistic clustering (e.g., GMM/HDBSCAN/NMF-based profiles) so that HFs can participate in multiple semantic neighborhoods.
+   This reflects the natural ambiguity and multidimensionality of real-world facts.
+
+3. **Class Relationships via Shared Structure**
+   Derive relatedness among Classes by examining how strongly they co-appear across HF groups — not through conceptual descriptions, but through measurable geometric patterns.
+
+4. **Axes as Low-Rank Semantic Directions**
+   Instead of predefined or LLM-proposed axes, infer axes directly from the latent structure (e.g., NMF or low-rank decompositions).
+   These axes become interpretable by inspecting which Classes contribute most strongly to them.
+
+5. **Multi-Aspect Classes**
+   A Class can load onto several axes, reflecting its multiple facets (e.g., a person who is also a political entity, a location associated with a historical period).
+   This multidimensionality emerges naturally from the factorization rather than being hand-assigned.
+
+6. **Geometric Space Construction**
+   With HFs and Classes embedded into a shared low-dimensional coordinate system, the Universe becomes navigable and inspectable without requiring generative inference at each step.
+
+7. **Optional LLM Naming Layer**
+   Only after the geometry is stable do we bring in an LLM — not to define Classes, but to *name* or summarize them using the top contributing HFs and Classes as evidence.
+   This keeps the interpretability benefits of LLMs while minimizing their influence on the underlying structure.
+
+### Intent
+
+This direction aims to strengthen RIHU’s foundations by grounding the semantic geometry in reproducible statistical structure.
+By letting Classes and axes *emerge* from factual distributions — and reserving LLM work for the final, human-facing layer — we encourage stability, interpretability, and transparency across the entire Universe Construction process.
+
+---
+
 ## Geometry & Metrics
 
 For any Class (A), using the coordinates of its Instances:
